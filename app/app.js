@@ -2,7 +2,7 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, paintSegment as paintStroke, stampBrush, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
+import { maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, paintSegment as paintStroke, stampBrush, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, pickSelection, moveLayer, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, notify } from './src/tools/index.js';
@@ -1350,15 +1350,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     if (!layer) return;
     const pt = toDoc(e);
     const useSel = state.sel.active && pointInSelection(pt.x, pt.y);
-    let picked = null;
-    if (useSel) {
-      picked = copyCanvas(layer.canvas);
-      const pg = picked.getContext('2d');
-      pg.globalCompositeOperation = 'destination-in';
-      const mk = maskToCanvas(state.sel.data, state.doc.w, state.doc.h, state.sel.bbox).canvas;
-      pg.drawImage(mk, state.sel.bbox.x, state.sel.bbox.y);
-      pg.globalCompositeOperation = 'source-over';
-    }
+    const picked = useSel ? pickSelection(layer, state.sel, state.doc) : null;
     state.draw = {
       kind: 'move', layer, src: copyCanvas(layer.canvas), sel: picked, start: pt,
       dx: 0, dy: 0, moved: false, pushed: false, useSel,
@@ -1376,22 +1368,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     if (!d.pushed) { pushDocHistory(); d.pushed = true; }
     d.moved = true;
     d.dx = dx; d.dy = dy;
-    const ctx = d.layer.ctx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0, 0, state.doc.w, state.doc.h);
-    if (d.useSel && d.sel) {
-      ctx.drawImage(d.src, 0, 0);
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = '#000';
-      ctx.fill(selPath(), 'evenodd');
-      ctx.restore();
-      ctx.drawImage(d.sel, dx, dy);
-    } else {
-      ctx.drawImage(d.src, dx, dy);
-    }
+    moveLayer(d.layer, d, { w: state.doc.w, h: state.doc.h, clipPath: d.useSel ? selPath() : null });
     renderSoon();
   }
 
