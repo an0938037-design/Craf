@@ -12,13 +12,13 @@ let env = null;
 /** { ants, overlay, getState, getSelection } — shell tiên giờ lúc boot. */
 export function configure(e) { env = e; }
 
-function clearOverlay() {
+export function clearOverlay() {
   const ctx = env.overlay.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, env.overlay.width, env.overlay.height);
 }
 
-function selPreviewPath() {
+export function selPreviewPath() {
   const p = new Path2D();
   const m = env.getState().selPreview;
   if (!m) return null;
@@ -36,12 +36,12 @@ function selPreviewPath() {
 }
 
 let antsFrame = 0;
-function requestAnts() {
+export function requestAnts() {
   if (antsFrame) return;
   antsFrame = requestAnimationFrame(() => { antsFrame = 0; drawAnts(); });
 }
 
-function drawAnts() {
+export function drawAnts() {
   const state = env.getState();
   const ants = env.ants;
   const sel = env.getSelection();
@@ -101,7 +101,7 @@ function drawAnts() {
 }
 
 let antsLast = 0;
-function startAnts() {
+export function startAnts() {
   const state = env.getState();
   const tick = (t) => {
     if (t - antsLast > 95) {

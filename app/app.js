@@ -4,7 +4,7 @@ import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
 import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
 import { selection } from './src/model/index.js';
-import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selPreviewPath } from './src/render/index.js';
+import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
 
 (() => {
   'use strict';
