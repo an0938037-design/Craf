@@ -1,10 +1,11 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
-import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
-import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
+import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
+import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
+import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, notify } from './src/tools/index.js';
 
 (() => {
   'use strict';
@@ -73,6 +74,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     zoomLabel: $('#zoomVal'),
     afterView: () => positionTextEditor(),
   });
+  const bus = createEmitter();
+  configureTools({ bus });
 
   /* ------------------------------------------------------------------ start screen */
   function renderPresets() {
@@ -352,14 +355,18 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     selView = { active: true, bbox: sel.bbox, data: sel.data, rev: sel.rev };
   }
 
-  function setSelection(mask, mode = 'replace') {
-    if (!state.doc) return null;
-    const sel = selection.apply(mask, selection.isActive() ? mode : 'replace');
+  function adoptSelection(sel) {
     syncSelView(sel);
     if (!sel) state.selPreview = null;
     updateSelectionUI();
     requestAnts();
+    notify('selection', sel ? { bbox: sel.bbox, rev: sel.rev } : null);
     return sel;
+  }
+
+  function setSelection(mask, mode = 'replace') {
+    if (!state.doc) return null;
+    return adoptSelection(selection.apply(mask, selection.isActive() ? mode : 'replace'));
   }
 
   function clearSelection() {
@@ -403,18 +410,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     if (!selection.isActive()) return;
     const { w, h } = state.doc;
     setSelection(maskTranslate(state.sel.data, w, h, dx, dy));
-  }
-
-  function maskFromRect(x, y, w, h) {
-    return coreMaskFromRect(x, y, w, h, state.doc.w, state.doc.h);
-  }
-
-  function maskFromPolygon(points) {
-    return pixelMaskFromPolygon(points, state.doc.w, state.doc.h);
-  }
-
-  function maskFromWand(x, y, tol) {
-    return wandMask(state.doc, x, y, tol);
   }
 
   function updateSelectionUI() {
@@ -1292,10 +1287,24 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const pt = toDoc(e);
     const tool = state.tool;
     if (tool === 'pick') { pickColor(e); return; }
-    if (tool === 'wand') { wandSelect(e); return; }
+    if (tool === 'wand') {
+      const mode = e.altKey ? 'subtract' : e.shiftKey ? 'add' : 'replace';
+      const sel = wandSelectAt(state.doc, pt.x, pt.y, state.wandTol, mode);
+      adoptSelection(sel);
+      if (sel && sel.bbox) toast('Đã chọn vùng màu · ' + fmt(sel.bbox.w) + ' × ' + fmt(sel.bbox.h), 'ok', 1600);
+      else toast('Không tìm thấy vùng màu', 'warn', 1800);
+      return;
+    }
     if (tool === 'move') { beginMove(e); return; }
     if (tool === 'gradient') { beginGradient(e); return; }
-    if (tool === 'marquee' || tool === 'lasso') { beginMarquee(e, tool); return; }
+    if (tool === 'marquee' || tool === 'lasso') {
+      const d = beginMarquee(tool, pt, { add: e.shiftKey, subtract: e.altKey });
+      state.draw = d;
+      try { overlay.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      state.selPreview = previewMarquee(d);
+      requestAnts();
+      return;
+    }
     if (tool === 'fill') { pushLayerHistory(); floodFill(pt); render(); updateLayerThumb(); markDirty(); return; }
     if (tool === 'text') { openTextEditor(e, pt); return; }
     const layer = activeLayer();
@@ -1339,11 +1348,9 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
       d.alt = e.altKey;
       previewShape(d);
     } else if (d.kind === 'marquee') {
-      d.current = pt;
-      d.shift = e.shiftKey && !d.add;
-      if (d.points) d.points.push(pt);
-      if (Math.hypot(pt.x - d.start.x, pt.y - d.start.y) > 3) d.moved = true;
-      syncMarqueePreview(d);
+      dragMarquee(d, pt, e.shiftKey);
+      state.selPreview = previewMarquee(d);
+      requestAnts();
     } else if (d.kind === 'move') {
       dragMove(d, e, pt);
     } else if (d.kind === 'gradient') {
@@ -1368,7 +1375,11 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
       commitShape(d);
       clearOverlay();
     } else if (d.kind === 'marquee') {
-      finishMarquee(d);
+      state.selPreview = null;
+      const res = commitMarquee(d, state.doc);
+      if (res.kind === 'applied') adoptSelection(res.sel);
+      else if (res.kind === 'cleared') { syncSelView(null); updateSelectionUI(); requestAnts(); }
+      else requestAnts();
     } else if (d.kind === 'move') {
       finishMove(d);
     } else if (d.kind === 'gradient') {
@@ -1381,57 +1392,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
       updateLayerThumb();
       markDirty();
     }
-  }
-
-  function syncMarqueePreview(d) {
-    if (d.tool === 'lasso') {
-      state.selPreview = { type: 'poly', points: d.points };
-    } else {
-      state.selPreview = { type: 'rect', start: d.start, current: d.current, shift: d.shift, alt: false };
-    }
-    requestAnts();
-  }
-
-  function beginMarquee(e, tool) {
-    const pt = toDoc(e);
-    const d = {
-      kind: 'marquee', tool, start: pt, current: pt,
-      points: tool === 'lasso' ? [pt] : null,
-      add: e.shiftKey, subtract: e.altKey, shift: false, moved: false,
-    };
-    state.draw = d;
-    try { overlay.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-    syncMarqueePreview(d);
-  }
-
-  function finishMarquee(d) {
-    state.selPreview = null;
-    if (!d.moved) {
-      if (!d.add && !d.subtract) clearSelection();
-      requestAnts();
-      return;
-    }
-    let mask;
-    if (d.tool === 'lasso') {
-      if (d.points.length < 3) { requestAnts(); return; }
-      mask = maskFromPolygon(d.points);
-    } else {
-      const g = previewGeometry(d);
-      if (g.w < 1 || g.h < 1) { requestAnts(); return; }
-      mask = maskFromRect(g.x, g.y, g.w, g.h);
-    }
-    const mode = d.subtract ? 'subtract' : d.add ? 'add' : 'replace';
-    setSelection(mask, mode);
-  }
-
-  function wandSelect(e) {
-    if (!state.doc) return;
-    const pt = toDoc(e);
-    const mode = e.altKey ? 'subtract' : e.shiftKey ? 'add' : 'replace';
-    const mask = maskFromWand(pt.x, pt.y, state.wandTol);
-    setSelection(mask, mode);
-    if (state.sel.active) toast('Đã chọn vùng màu · ' + fmt(state.sel.bbox.w) + ' × ' + fmt(state.sel.bbox.h), 'ok', 1600);
-    else toast('Không tìm thấy vùng màu', 'warn', 1800);
   }
 
   function beginMove(e) {

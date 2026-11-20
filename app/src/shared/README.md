@@ -2,6 +2,7 @@
 
 ## Owns
 Helper thuần, không ngữ nghĩa Craf: `clamp`, `lerp`, `fmt`, `pad`, `uid`, `esc`.
+`emitter.js` — `createEmitter()`: factory `on/off/emit/clear`, không channel mặc định, không trạng thái toàn cục (instance do `shell` tạo và tiêm).
 
 ## May use
 Không import section nào.

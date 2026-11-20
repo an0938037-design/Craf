@@ -8,3 +8,4 @@
  */
 
 export { clamp, uid, esc, pad, fmt } from './util.js';
+export { createEmitter } from './emitter.js';
