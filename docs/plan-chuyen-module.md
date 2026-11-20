@@ -12,9 +12,47 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 | `addEventListener` | 125 |
 | `render()` / `renderSoon()` gọi ngầm | 4 điểm điều phối |
 | `index.html` | 718 dòng, 1 thẻ `<script>` |
-| Section đã dựng | 9 (rỗng, có `index.js` + README hợp đồng) |
+| Section đã dựng | 9, có `index.js` + README hợp đồng |
 | Cổng kiểm tra | `tools/check-boundaries.mjs`, đã test 4 ca |
 | Git | `main`, baseline `93a21d3`, khung `03b3e72` |
+
+## Trạng thái thực hiện
+
+| Giai đoạn | Trạng thái | Commit |
+|---|---|---|
+| 0 — khung | ✅ xong | `03b3e72`, `d115640` |
+| 1 — platform / shared / core | ✅ xong | `e25522a`, `9218942`, `8fd6eab`, `969a5b5` |
+| 2 — model/store | chưa bắt đầu | — |
+| 3 — pixel / render | chưa bắt đầu | — |
+| 4 — tools + bus | chưa bắt đầu | — |
+| 5 — ui / shell | chưa bắt đầu | — |
+| 6 — khoá lại | chưa bắt đầu | — |
+
+### Ghi chú sau giai đoạn 1 (đọc trước khi làm giai đoạn 2–3)
+
+Kế hoạch giả định 9 hàm mask/hình học là thuần. **Thực tế không phải.** Chúng đọc
+`state.doc`, gọi `mask.getContext('2d')` / `getImageData`, hoặc trả `Path2D`:
+
+| Hàm | Vướng | Nơi đúng |
+|---|---|---|
+| `selectionBounds`, `maskSegments`, `maskFromRect`, `maskFromPolygon` | canvas 2D + `state` | `core/mask.js` **sau khi** đổi chữ ký nhận `Uint8Array` + `w,h`; adapter đọc canvas nằm ở `pixel` |
+| `pointInSelection`, `translateSelection` | đọc `state.doc` | như trên |
+| `pathFromSegments` | trả `Path2D` | `render/` (Path2D là API canvas, không phải toán thuần) |
+| `shapeGeometry` | đọc `state.tool` | `tools/shape.js`, hoặc `core` sau khi `tool` thành tham số |
+
+Hệ quả: `app.js` giảm **59 dòng** (3.585 → 3.526), không phải ~200 như dự đoán.
+Đổi chữ ký là thay đổi hợp đồng — phải do người sở hữu `core` quyết định và làm ở
+giai đoạn 2/3, không gộp ngược vào giai đoạn 1.
+
+### Nghiệm thu giai đoạn 1 (số đo thật)
+
+- Cổng: 9 section · 13 file · 1 cạnh (`core→shared`) · **SẠCH**, exit 0.
+- `app.js` 3.585 → 3.526 dòng (−59); `index.html` đổi 1 dòng (`type="module"`).
+- Browser thật: boot đủ — hero canvas 1080×1350 vẽ kín, 28 swatch, 5 preset khổ giấy, console **0 lỗi**.
+- Brush: mực 1.400 → 2.760 px; undo về 1.400; redo về 2.760 — chính xác từng bước.
+- Marquee: ants vẽ 1.800 px, tool chuyển đúng.
+- Save → reload → mở lại: mực khôi phục 2.760 px, **khớp tuyệt đối** trước reload.
+- Chưa làm: so byte ảnh export trước/sau (cần mẫu export cố định để so).
 
 Không có build step, không bundler, không test runner. Vì vậy **cổng ranh giới là
 thứ duy nhất chặn hồi quy kiến trúc** — không có gì khác thay thế được.
