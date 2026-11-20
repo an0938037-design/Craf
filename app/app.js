@@ -1,54 +1,14 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
+import { $, $$, dpr, loadImage } from './src/platform/index.js';
+import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
+import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
+
 (() => {
   'use strict';
 
   /* ------------------------------------------------------------------ utils */
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const uid = () => 'craf-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const pad = (n) => String(n).padStart(2, '0');
-  const fmt = (n) => Math.round(n).toLocaleString('en-US').replace(/,/g, '.');
-  const dpr = () => Math.min(window.devicePixelRatio || 1, 2);
-
-  const hexToRgb = (hex) => {
-    const h = String(hex || '').replace('#', '');
-    const v = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0').slice(0, 6);
-    return { r: parseInt(v.slice(0, 2), 16) || 0, g: parseInt(v.slice(2, 4), 16) || 0, b: parseInt(v.slice(4, 6), 16) || 0 };
-  };
-  const rgbToHex = (r, g, b) => '#' + [r, g, b].map((v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('').toUpperCase();
-  const rgbToHsl = (r, g, b) => {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-    let h = 0;
-    if (d) {
-      if (max === r) h = ((g - b) / d) % 6;
-      else if (max === g) h = (b - r) / d + 2;
-      else h = (r - g) / d + 4;
-      h *= 60;
-      if (h < 0) h += 360;
-    }
-    const l = (max + min) / 2;
-    const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
-    return { h, s: s * 100, l: l * 100 };
-  };
-  const hslToRgb = (h, s, l) => {
-    h = ((h % 360) + 360) % 360; s = clamp(s, 0, 100) / 100; l = clamp(l, 0, 100) / 100;
-    const c = (1 - Math.abs(2 * l - 1)) * s;
-    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-    const m = l - c / 2;
-    let r = 0, g = 0, b = 0;
-    if (h < 60) [r, g, b] = [c, x, 0];
-    else if (h < 120) [r, g, b] = [x, c, 0];
-    else if (h < 180) [r, g, b] = [0, c, x];
-    else if (h < 240) [r, g, b] = [0, x, c];
-    else if (h < 300) [r, g, b] = [x, 0, c];
-    else [r, g, b] = [c, 0, x];
-    return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
-  };
-  const hslToHex = (h, s, l) => { const c = hslToRgb(h, s, l); return rgbToHex(c.r, c.g, c.b); };
-  const hexToHsl = (hex) => { const c = hexToRgb(hex); return rgbToHsl(c.r, c.g, c.b); };
+  /* Đã tách sang section: $ $$ dpr loadImage → src/platform · clamp esc fmt pad uid
+     → src/shared · hex/rgb/hsl → src/core/color.js · bezierPoints → src/core/geometry.js */
 
   async function api(path, body) {
     const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
@@ -59,13 +19,6 @@
     if (!res.ok) throw new Error((data && data.error) || text || res.statusText);
     return data || {};
   }
-
-  const loadImage = (src) => new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Không đọc được ảnh'));
-    img.src = src;
-  });
 
   function toast(msg, kind = 'ok', ms = 3200) {
     const box = $('#toasts');
@@ -2960,18 +2913,6 @@
     ctx.closePath();
     ctx.fill();
     ctx.restore();
-  }
-
-  function bezierPoints(p0, p1, p2, p3, count = 180) {
-    const out = [];
-    for (let i = 0; i <= count; i++) {
-      const t = i / count, mt = 1 - t;
-      out.push({
-        x: mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x,
-        y: mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y,
-      });
-    }
-    return out;
   }
 
   let heroRun = 0;
