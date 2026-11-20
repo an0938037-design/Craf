@@ -12,6 +12,8 @@ export { floodFillLayer } from './fill.js';
 export { strokePath, fillPath, clearPath } from './stroke.js';
 export { cropCanvas } from './ops.js';
 export { stampBrush, paintSegment } from './brush.js';
+export { gradientPaint } from './gradient.js';
+export { shapeGeometry, shapePath, paintShape } from './shape.js';
 export { adjustFilter, applyLevels, convolveCanvas, filterCanvas, paintClippedOver } from './adjust.js';
 export { sampleHex } from './sample.js';
 export { pngDataURL, jpegDataURL } from './encode.js';

@@ -2,7 +2,7 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, paintSegment as paintStroke, stampBrush, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, paintSegment as paintStroke, stampBrush, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, notify } from './src/tools/index.js';
@@ -1412,28 +1412,14 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     previewGradient(state.draw);
   }
 
+  /* Gradient: phần điểm ảnh nằm ở pixel/gradient.js; ở đây bơm tham số tool. */
   function gradientPaint(ctx, d) {
-    const { w, h } = state.doc;
-    const dx = d.current.x - d.start.x;
-    const dy = d.current.y - d.start.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 0.5) return;
-    const c1 = d.reverse ? state.bgColor : state.color;
-    const c2 = d.reverse ? state.color : state.bgColor;
-    let grad;
-    if (state.gradType === 'radial') {
-      grad = ctx.createRadialGradient(d.start.x, d.start.y, 0, d.start.x, d.start.y, dist);
-    } else {
-      grad = ctx.createLinearGradient(d.start.x, d.start.y, d.current.x, d.current.y);
-    }
-    grad.addColorStop(0, c1);
-    grad.addColorStop(1, c2);
-    ctx.save();
-    ctx.globalAlpha = state.opacity;
-    if (state.sel.active) ctx.clip(selPath(), 'evenodd');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
+    gradientPaintDoc(ctx, d, {
+      w: state.doc.w, h: state.doc.h,
+      color: state.color, bgColor: state.bgColor,
+      opacity: state.opacity, gradType: state.gradType,
+      clipPath: state.sel.active ? selPath() : null,
+    });
   }
 
   function previewGradient(d) {
@@ -1457,56 +1443,12 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     markDirty();
   }
 
-  function shapeGeometry(d) {
-    let { x: x0, y: y0 } = d.start;
-    let { x: x1, y: y1 } = d.current;
-    if (d.shift) {
-      if (state.tool === 'line') {
-        const dx = x1 - x0, dy = y1 - y0;
-        const ang = Math.atan2(dy, dx);
-        const snap = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
-        const len = Math.hypot(dx, dy);
-        x1 = x0 + Math.cos(snap) * len;
-        y1 = y0 + Math.sin(snap) * len;
-      } else {
-        const side = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-        x1 = x0 + Math.sign(x1 - x0 || 1) * side;
-        y1 = y0 + Math.sign(y1 - y0 || 1) * side;
-      }
-    }
-    if (d.alt) {
-      x0 = d.start.x - (x1 - d.start.x);
-      y0 = d.start.y - (y1 - d.start.y);
-    }
-    return { x0, y0, x1, y1 };
-  }
-
-  function shapePath(ctx, tool, g) {
-    ctx.beginPath();
-    if (tool === 'line') {
-      ctx.moveTo(g.x0, g.y0);
-      ctx.lineTo(g.x1, g.y1);
-    } else if (tool === 'rect') {
-      ctx.rect(Math.min(g.x0, g.x1), Math.min(g.y0, g.y1), Math.abs(g.x1 - g.x0), Math.abs(g.y1 - g.y0));
-    } else {
-      const cx = (g.x0 + g.x1) / 2, cy = (g.y0 + g.y1) / 2;
-      ctx.ellipse(cx, cy, Math.abs(g.x1 - g.x0) / 2, Math.abs(g.y1 - g.y0) / 2, 0, 0, Math.PI * 2);
-    }
-  }
-
+  /* Shape: hình học + rasterize ở pixel/shape.js; ở đây bơm tham số tool. */
   function paintShape(ctx, d) {
-    const g = shapeGeometry(d);
-    ctx.save();
-    ctx.strokeStyle = state.color;
-    ctx.fillStyle = state.color;
-    ctx.lineWidth = state.size;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.globalAlpha = state.opacity;
-    shapePath(ctx, state.tool, g);
-    if (state.shapeFill && state.tool !== 'line') ctx.fill();
-    else ctx.stroke();
-    ctx.restore();
+    paintShapeDoc(ctx, d, {
+      tool: state.tool, color: state.color, size: state.size,
+      opacity: state.opacity, shapeFill: state.shapeFill,
+    });
   }
 
   function previewShape(d) {
