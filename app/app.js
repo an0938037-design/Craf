@@ -3,7 +3,7 @@ import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
 import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas } from './src/pixel/index.js';
-import { selection, state } from './src/model/index.js';
+import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
 
 (() => {
@@ -68,12 +68,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   const area = $('#boardArea');
 
   /* ------------------------------------------------------------------ start screen */
-  function sheetSize(p) {
-    const ratio = p.w / p.h;
-    if (ratio >= 1) return { w: Math.min(88, 64 * ratio), h: 64 };
-    return { w: 64, h: Math.min(64, 64 / ratio) };
-  }
-
   function renderPresets() {
     const box = $('#presets');
     const cards = PRESETS.map((p) => {
@@ -271,22 +265,10 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     layer.ctx = canvas.getContext('2d');
   }
 
-  function uniqueName(name) {
-    if (!state.projects.some((p) => p.name === name)) return name;
-    let i = 2;
-    while (state.projects.some((p) => p.name === name + ' ' + i)) i++;
-    return name + ' ' + i;
-  }
-
   function createProject(name, w, h, seed) {
     const doc = {
-      id: uid(),
-      name: uniqueName(name),
-      w, h,
-      bg: '#FDFAF3',
+      ...newDocData(uniqueProjectName(state.projects, name), w, h),
       layers: [newLayer(w, h, 'Lớp 1')],
-      active: 0,
-      createdAt: Date.now(),
     };
     if (seed) seed(doc);
     openDoc(doc);
@@ -294,12 +276,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   }
 
   function openDoc(doc) {
-    state.doc = doc;
-    state.active = clamp(doc.active ?? doc.layers.length - 1, 0, doc.layers.length - 1);
-    state.undo = []; state.redo = [];
-    selection.clear(); syncSelView(null); state.selPreview = null;
-    state.adjust = null; state.guidesX = []; state.guidesY = [];
-    state.fitMode = true;
+    activate(doc);
+    syncSelView(null);
     showStudio();
     $('#projectName').value = doc.name;
     $('#projectMeta').textContent = `${doc.w} × ${doc.h} PX`;
@@ -340,10 +318,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     } catch (err) {
       toast('Không mở được bản vẽ: ' + err.message, 'err');
     }
-  }
-
-  function activeLayer() {
-    return state.doc ? state.doc.layers[state.active] : null;
   }
 
   async function goStart() {
