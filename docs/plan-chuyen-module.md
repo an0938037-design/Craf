@@ -237,6 +237,7 @@ hồi quy xanh trên desktop + 720px.
 | P5 — `shell/keymap` | ✅ | `c684829` |
 | P5 — `ui/modals` + `ui/hero` | ✅ | `refactor(ui): modal size/transform/stroke + hero poster` |
 | P5/P6 — `shell/boot` + entry `shell/index.js`, xoá `app/app.js` | ✅ | `a1c9e47` |
+| P5-9 — `shell/documents` + `shell/geometry` | ✅ | merge `c6a43f3` (nhánh `p5split`, commit `b3b6e6f`) |
 
 Kiểm chứng browser sau mỗi mốc: hash doc-space `7ab27801` (trống), `fffe201d`
 (sau nét cọ), undo/redo, save/autosave, export PNG↔JPEG, menu/pane/drawer/modal,
@@ -250,7 +251,7 @@ thuần đã nằm ở section rank thấp hơn.
 
 - **P6-1** — Xoá `app/app.js`, cập nhật `docs/architecture.md` + README: ✅ (`a1c9e47`).
 - **P6-2** — Cổng ranh giới: ✅ `node tools/check-boundaries.mjs` → `KẾT QUẢ: SẠCH` (9 section, 66 file, 26 cạnh).
-- **P6-3** — Baseline/hồi quy: 9 hash doc-space khớp 100% bảng P2 trong `docs/contracts/mask-baseline.md` (chạy lại 2026-11-20). A12 (save → reload → mở lại) đã chạy lại: doc 1 lớp sau brush `fffe201d` → autosave → reload → mở lại vẫn `fffe201d`, vùng chọn không khôi phục, 0 lỗi console. Đối chứng soft/fill trên HEAD và `403b27c`: soft `285884f7` cả hai bên (baseline P4 `cfe7bfbc` không tái tạo được trên code cũ ⇒ ghi nhận sai, không hồi quy); fill `bf079686`, undo `7ab27801` khớp cả hai bên và baseline.
+- **P6-3** — Baseline/hồi quy: 9 hash doc-space khớp 100% bảng P2 trong `docs/contracts/mask-baseline.md` (chạy lại 2026-11-20). A12 (save → reload → mở lại) đã chạy lại: doc 1 lớp sau brush `fffe201d` → autosave → reload → mở lại vẫn `fffe201d`, vùng chọn không khôi phục, 0 lỗi console. Đối chứng soft/fill trên HEAD và `403b27c`: soft `285884f7` cả hai bên (baseline P4 `cfe7bfbc` không tái tạo được trên code cũ ⇒ ghi nhận sai, không hồi quy); fill `bf079686`, undo `7ab27801` khớp cả hai bên và baseline. Sau khi merge P5-9 (`c6a43f3`): smoke lại blank/brush/undo/redo/flip/rotate và mở project đều đúng (xem bảng P6 trong `mask-baseline.md`).
 
 ## Giai đoạn 6 — Khoá lại
 

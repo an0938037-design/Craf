@@ -163,6 +163,24 @@ A12 (save → reload → mở lại) đã chạy lại trên HEAD: doc Poster 1 
 
 Kết luận P6: không có hồi quy pixel do refactor; chỉ số `cfe7bfbc` của P4 là ghi nhận sai/khác harness, không dùng làm chuẩn.
 
+### P6 — smoke sau merge P5-9 (`c6a43f3`)
+
+Đo trên bản đã merge `documents.js`/`geometry.js` vào `shell` (browser, doc Poster 1080×1350, cùng hàm hash):
+
+| Bước | Hash doc space |
+|---|---|
+| `blank` | `7ab27801` |
+| `afterBrush` | `fffe201d` |
+| undo brush | `7ab27801` |
+| redo brush | `fffe201d` |
+| `flipDoc(true)` | `6f416d93` |
+| undo flip | `fffe201d` |
+| `rotateDoc(1)` (doc thành 1350×1080) | `46039d57` |
+| undo rotate (về 1080×1350) | `fffe201d` |
+| lưu → reload → mở lại project | `fffe201d` |
+
+0 lỗi console. Các hash khớp baseline ở trên; flip/rotate là phép mới dùng để kiểm đường `geometry` + deps tiêm.
+
 ## Cách chạy lại
 
 1. Mở `http://127.0.0.1:7317/`, tạo doc Poster 1080×1350.
