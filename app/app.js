@@ -1,7 +1,9 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
-import { $, $$, dpr, loadImage } from './src/platform/index.js';
+import { $, $$, dpr, loadImage, pathFromCommands } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
-import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
+import { bezierPoints, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, maskSegments, segmentsToCommands, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
+import { maskToCanvas, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
+import { selection } from './src/model/index.js';
 
 (() => {
   'use strict';
@@ -57,12 +59,14 @@ import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from '
     dirty: false, saving: false, saveTimer: 0,
     space: false, panning: null, draw: null, textAt: null,
     guides: false, guidesX: [], guidesY: [], guideDrag: null,
-    sel: { active: false, mask: null, path: null, bbox: null },
     selPreview: null, marquee: null,
     move: null, gradient: null,
     clipboard: null, adjust: null,
     antsPhase: 0,
   };
+  let selView = { active: false, mask: null, path: null, bbox: null, data: null, rev: 0 };
+  Object.defineProperty(state, 'sel', { get: () => selView, enumerable: true });
+  selection.configure({ getDocSize: () => (state.doc ? { w: state.doc.w, h: state.doc.h } : null) });
 
   const paper = $('#paper');
   const overlay = $('#overlay');
@@ -301,8 +305,7 @@ import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from '
     state.doc = doc;
     state.active = clamp(doc.active ?? doc.layers.length - 1, 0, doc.layers.length - 1);
     state.undo = []; state.redo = [];
-    state.sel = { active: false, mask: null, path: null, bbox: null };
-    state.selPreview = null;
+    selection.clear(); syncSelView(null); state.selPreview = null;
     state.adjust = null; state.guidesX = []; state.guidesY = [];
     state.fitMode = true;
     showStudio();
@@ -425,102 +428,30 @@ import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from '
   }
 
   /* ------------------------------------------------------------------ selection */
-  function newMask() {
-    return makeCanvas(state.doc.w, state.doc.h);
-  }
-
-  function selectionBounds(mask) {
+  function syncSelView(sel) {
+    if (!sel) {
+      selView = { active: false, mask: null, path: null, bbox: null, data: null, rev: selection.revision() };
+      return;
+    }
     const { w, h } = state.doc;
-    const data = mask.getContext('2d').getImageData(0, 0, w, h).data;
-    let minX = w, minY = h, maxX = -1, maxY = -1;
-    for (let y = 0; y < h; y++) {
-      const row = y * w * 4;
-      for (let x = 0; x < w; x++) {
-        if (data[row + x * 4 + 3] > 127) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-    if (maxX < 0) return null;
-    return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
-  }
-
-  function maskSegments(mask) {
-    const { w, h } = state.doc;
-    const data = mask.getContext('2d').getImageData(0, 0, w, h).data;
-    const inside = (x, y) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3] > 127;
-    const segs = [];
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        if (!inside(x, y)) continue;
-        if (!inside(x, y - 1)) segs.push([x + 1, y, x, y]);
-        if (!inside(x, y + 1)) segs.push([x, y + 1, x + 1, y + 1]);
-        if (!inside(x - 1, y)) segs.push([x, y, x, y + 1]);
-        if (!inside(x + 1, y)) segs.push([x + 1, y + 1, x + 1, y]);
-      }
-    }
-    return segs;
-  }
-
-  function pathFromSegments(segs) {
-    const key = (x, y) => x + ',' + y;
-    const starts = new Map();
-    segs.forEach((s, i) => {
-      const k = key(s[0], s[1]);
-      if (!starts.has(k)) starts.set(k, []);
-      starts.get(k).push(i);
-    });
-    const used = new Uint8Array(segs.length);
-    const path = new Path2D();
-    for (let i = 0; i < segs.length; i++) {
-      if (used[i]) continue;
-      path.moveTo(segs[i][0], segs[i][1]);
-      let cur = i;
-      let guard = 0;
-      while (cur != null && guard++ < segs.length + 8) {
-        used[cur] = 1;
-        const [, , x1, y1] = segs[cur];
-        path.lineTo(x1, y1);
-        if (x1 === segs[i][0] && y1 === segs[i][1]) break;
-        const list = starts.get(key(x1, y1));
-        let next = null;
-        if (list) for (const j of list) if (!used[j]) { next = j; break; }
-        cur = next;
-      }
-      path.closePath();
-    }
-    return path;
+    const mask = maskToCanvas(sel.data, w, h).canvas;
+    const path = pathFromCommands(segmentsToCommands(maskSegments(sel.data, w, h)));
+    selView = { active: true, mask, path, bbox: sel.bbox, data: sel.data, rev: sel.rev };
   }
 
   function setSelection(mask, mode = 'replace') {
-    if (!state.doc) return;
-    const { w, h } = state.doc;
-    const out = makeCanvas(w, h);
-    const g = out.getContext('2d');
-    if (mode === 'add' && state.sel.active && state.sel.mask) {
-      g.drawImage(state.sel.mask, 0, 0);
-      g.drawImage(mask, 0, 0);
-    } else if (mode === 'subtract' && state.sel.active && state.sel.mask) {
-      g.drawImage(state.sel.mask, 0, 0);
-      g.globalCompositeOperation = 'destination-out';
-      g.drawImage(mask, 0, 0);
-    } else {
-      g.drawImage(mask, 0, 0);
-    }
-    const bbox = selectionBounds(out);
-    if (!bbox) { clearSelection(); return; }
-    const segs = maskSegments(out);
-    if (!segs.length) { clearSelection(); return; }
-    state.sel = { active: true, mask: out, path: pathFromSegments(segs), bbox };
+    if (!state.doc) return null;
+    const sel = selection.apply(mask, selection.isActive() ? mode : 'replace');
+    syncSelView(sel);
+    if (!sel) state.selPreview = null;
     updateSelectionUI();
     requestAnts();
+    return sel;
   }
 
   function clearSelection() {
-    state.sel = { active: false, mask: null, path: null, bbox: null };
+    selection.clear();
+    syncSelView(null);
     state.selPreview = null;
     updateSelectionUI();
     requestAnts();
@@ -528,23 +459,14 @@ import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from '
 
   function selectAll() {
     if (!state.doc) return;
-    const m = newMask();
-    const g = m.getContext('2d');
-    g.fillStyle = '#000';
-    g.fillRect(0, 0, state.doc.w, state.doc.h);
-    setSelection(m);
+    setSelection(maskAll(state.doc.w, state.doc.h));
   }
 
   function invertSelection() {
     if (!state.doc) return;
-    if (!state.sel.active) { selectAll(); return; }
-    const m = newMask();
-    const g = m.getContext('2d');
-    g.fillStyle = '#000';
-    g.fillRect(0, 0, state.doc.w, state.doc.h);
-    g.globalCompositeOperation = 'destination-out';
-    g.drawImage(state.sel.mask, 0, 0);
-    setSelection(m);
+    if (!selection.isActive()) { selectAll(); return; }
+    const { w, h } = state.doc;
+    setSelection(maskInvert(state.sel.data, w, h));
   }
 
   function selectLayerContent() {
@@ -552,94 +474,35 @@ import { bezierPoints, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from '
     const layer = activeLayer();
     if (!layer) return;
     const { w, h } = state.doc;
-    const src = layer.canvas.getContext('2d').getImageData(0, 0, w, h).data;
-    const mask = newMask();
-    const mg = mask.getContext('2d');
-    const out = mg.createImageData(w, h);
-    const d = out.data;
-    let filled = 0;
-    for (let i = 0; i < src.length; i += 4) {
-      if (src[i + 3] > 8) {
-        d[i] = 0; d[i + 1] = 0; d[i + 2] = 0; d[i + 3] = 255;
-        filled++;
-      }
-    }
-    if (!filled) { toast('Lớp này đang trống', 'warn'); return; }
-    mg.putImageData(out, 0, 0);
+    const mask = maskFromLayerAlpha(layer.canvas);
+    if (!maskBounds(mask, w, h)) { toast('Lớp này đang trống', 'warn'); return; }
     setSelection(mask);
     const b = state.sel.bbox;
     toast(`Đã chọn nội dung lớp · ${b.w} × ${b.h}`, 'ok', 1800);
   }
 
   function pointInSelection(x, y) {
-    if (!state.sel.active || !state.sel.mask) return false;
-    const px = clamp(Math.floor(x), 0, state.doc.w - 1);
-    const py = clamp(Math.floor(y), 0, state.doc.h - 1);
-    return state.sel.mask.getContext('2d').getImageData(px, py, 1, 1).data[3] > 127;
+    if (!selection.isActive()) return false;
+    return selection.contains(clamp(Math.floor(x), 0, state.doc.w - 1), clamp(Math.floor(y), 0, state.doc.h - 1));
   }
 
   function translateSelection(dx, dy) {
-    if (!state.sel.active || !state.sel.mask) return;
-    const m = newMask();
-    m.getContext('2d').drawImage(state.sel.mask, dx, dy);
-    setSelection(m);
+    if (!selection.isActive()) return;
+    const { w, h } = state.doc;
+    setSelection(maskTranslate(state.sel.data, w, h, dx, dy));
   }
 
   function maskFromRect(x, y, w, h) {
-    const m = newMask();
-    const g = m.getContext('2d');
-    g.fillStyle = '#000';
-    g.fillRect(x, y, w, h);
-    return m;
+    return coreMaskFromRect(x, y, w, h, state.doc.w, state.doc.h);
   }
 
   function maskFromPolygon(points) {
-    const m = newMask();
-    if (points.length < 3) return m;
-    const g = m.getContext('2d');
-    g.fillStyle = '#000';
-    g.beginPath();
-    g.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
-    g.closePath();
-    g.fill();
-    return m;
+    return pixelMaskFromPolygon(points, state.doc.w, state.doc.h);
   }
 
   function maskFromWand(x, y, tol) {
     const { w, h } = state.doc;
-    const sx = Math.floor(x), sy = Math.floor(y);
-    if (sx < 0 || sy < 0 || sx >= w || sy >= h) return newMask();
-    const src = compositeCanvas(w, h).getContext('2d').getImageData(0, 0, w, h);
-    const d = src.data;
-    const start = (sy * w + sx) * 4;
-    const tr = d[start], tg = d[start + 1], tb = d[start + 2];
-    const t = clamp(tol, 0, 255);
-    const near = (i) => Math.abs(d[i] - tr) <= t && Math.abs(d[i + 1] - tg) <= t && Math.abs(d[i + 2] - tb) <= t;
-    const mask = new ImageData(w, h);
-    const out = mask.data;
-    const stack = new Int32Array(w * h);
-    let sp = 0;
-    const idx = sy * w + sx;
-    stack[sp++] = idx;
-    out[idx * 4] = 0; out[idx * 4 + 1] = 0; out[idx * 4 + 2] = 0; out[idx * 4 + 3] = 255;
-    while (sp) {
-      const p = stack[--sp];
-      const px = p % w;
-      const check = (q) => {
-        if (out[q * 4 + 3]) return;
-        if (!near(q * 4)) return;
-        out[q * 4] = 0; out[q * 4 + 1] = 0; out[q * 4 + 2] = 0; out[q * 4 + 3] = 255;
-        stack[sp++] = q;
-      };
-      if (px > 0) check(p - 1);
-      if (px < w - 1) check(p + 1);
-      if (p >= w) check(p - w);
-      if (p < (h - 1) * w) check(p + w);
-    }
-    const c = makeCanvas(w, h);
-    c.getContext('2d').putImageData(mask, 0, 0);
-    return c;
+    return maskFromWandFn(compositeSample(state.doc, w, h, true), w, h, x, y, tol);
   }
 
   function updateSelectionUI() {

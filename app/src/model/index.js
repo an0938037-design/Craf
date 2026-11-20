@@ -8,4 +8,4 @@
  * (docs/plan-chuyen-module.md). Đây là giai đoạn rủi ro nhất: 570 chỗ đọc
  * `state.` trong app.js phải đi qua store.
  */
-export {};
+export * as selection from './selection.js';
