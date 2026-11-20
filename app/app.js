@@ -1,9 +1,10 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
-import { $, $$, dpr, loadImage, pathFromCommands } from './src/platform/index.js';
+import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
-import { bezierPoints, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, maskSegments, segmentsToCommands, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
+import { bezierPoints, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
 import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
 import { selection } from './src/model/index.js';
+import { selectionPath } from './src/render/index.js';
 
 (() => {
   'use strict';
@@ -64,7 +65,7 @@ import { selection } from './src/model/index.js';
     clipboard: null, adjust: null,
     antsPhase: 0,
   };
-  let selView = { active: false, mask: null, path: null, bbox: null, data: null, rev: 0 };
+  let selView = { active: false, bbox: null, data: null, rev: 0 };
   Object.defineProperty(state, 'sel', { get: () => selView, enumerable: true });
   selection.configure({ getDocSize: () => (state.doc ? { w: state.doc.w, h: state.doc.h } : null) });
 
@@ -428,24 +429,17 @@ import { selection } from './src/model/index.js';
   }
 
   /* ------------------------------------------------------------------ selection */
+  function selPath() {
+    const s = selection.get();
+    return s ? selectionPath(s) : null;
+  }
+
   function syncSelView(sel) {
     if (!sel) {
-      selView = { active: false, mask: null, path: null, bbox: null, data: null, rev: selection.revision() };
+      selView = { active: false, bbox: null, data: null, rev: selection.revision() };
       return;
     }
-    const { w, h } = state.doc;
-    const path = pathFromCommands(segmentsToCommands(maskSegments(sel.data, w, h)));
-    // `mask` là cache canvas DẪN XUẤT, chỉ copy/cut/move/floodFill đọc. Dựng
-    // paresseux: đường chọn (marquee/lasso/wand/ants) không phải trả giá cho nó.
-    // Field này biến mất ở C5; không thêm chỗ đọc mới.
-    let maskCache = null;
-    selView = {
-      active: true, path, bbox: sel.bbox, data: sel.data, rev: sel.rev,
-      get mask() {
-        if (!maskCache) maskCache = maskToCanvas(sel.data, w, h).canvas;
-        return maskCache;
-      },
-    };
+    selView = { active: true, bbox: sel.bbox, data: sel.data, rev: sel.rev };
   }
 
   function setSelection(mask, mode = 'replace') {
@@ -609,16 +603,16 @@ import { selection } from './src/model/index.js';
       g.restore();
     }
 
-    if (state.sel.active && state.sel.path) {
+    if (state.sel.active && selPath()) {
       g.save();
       g.lineWidth = 1 / zoom;
       g.strokeStyle = 'rgba(253, 250, 243, 0.92)';
       g.setLineDash([]);
-      g.stroke(state.sel.path);
+      g.stroke(selPath());
       g.strokeStyle = 'rgba(10, 10, 11, 0.92)';
       g.setLineDash([5 / zoom, 5 / zoom]);
       g.lineDashOffset = -state.antsPhase / zoom;
-      g.stroke(state.sel.path);
+      g.stroke(selPath());
       g.restore();
     }
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1042,7 +1036,7 @@ import { selection } from './src/model/index.js';
     ctx.drawImage(original, 0, 0);
     if (state.sel.active) {
       ctx.save();
-      ctx.clip(state.sel.path, 'evenodd');
+      ctx.clip(selPath(), 'evenodd');
       ctx.drawImage(filtered, 0, 0);
       ctx.restore();
     } else {
@@ -1642,7 +1636,7 @@ import { selection } from './src/model/index.js';
       layer.ctx.save();
       layer.ctx.globalCompositeOperation = 'destination-out';
       layer.ctx.fillStyle = '#000';
-      layer.ctx.fill(state.sel.path, 'evenodd');
+      layer.ctx.fill(selPath(), 'evenodd');
       layer.ctx.restore();
       render(); updateLayerThumb(); markDirty();
     }
@@ -1675,7 +1669,7 @@ import { selection } from './src/model/index.js';
     if (state.sel.active) {
       layer.ctx.globalCompositeOperation = 'destination-out';
       layer.ctx.fillStyle = '#000';
-      layer.ctx.fill(state.sel.path, 'evenodd');
+      layer.ctx.fill(selPath(), 'evenodd');
     } else {
       layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
     }
@@ -1690,7 +1684,7 @@ import { selection } from './src/model/index.js';
     if (!layer) return;
     pushLayerHistory();
     layer.ctx.save();
-    if (state.sel.active) layer.ctx.clip(state.sel.path, 'evenodd');
+    if (state.sel.active) layer.ctx.clip(selPath(), 'evenodd');
     layer.ctx.globalAlpha = state.opacity;
     layer.ctx.fillStyle = state.color;
     layer.ctx.fillRect(0, 0, state.doc.w, state.doc.h);
@@ -1724,12 +1718,12 @@ import { selection } from './src/model/index.js';
     ctx.save();
     let lineWidth = width;
     if (align === 'inside') {
-      ctx.clip(state.sel.path, 'evenodd');
+      ctx.clip(selPath(), 'evenodd');
       lineWidth = width * 2;
     } else if (align === 'outside') {
       const outside = new Path2D();
       outside.rect(0, 0, state.doc.w, state.doc.h);
-      outside.addPath(state.sel.path);
+      outside.addPath(selPath());
       ctx.clip(outside, 'evenodd');
       lineWidth = width * 2;
     }
@@ -1737,7 +1731,7 @@ import { selection } from './src/model/index.js';
     ctx.strokeStyle = color;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.stroke(state.sel.path);
+    ctx.stroke(selPath());
     ctx.restore();
     render(); updateLayerThumb(); markDirty();
     toast(`Đã viền vùng chọn · ${width}px`, 'ok', 1600);
@@ -1875,7 +1869,7 @@ import { selection } from './src/model/index.js';
     const clipped = state.sel.active;
     if (clipped) {
       layer.ctx.save();
-      layer.ctx.clip(state.sel.path, 'evenodd');
+      layer.ctx.clip(selPath(), 'evenodd');
     }
     if (tool === 'brush' || tool === 'eraser') {
       const ctx = layer.ctx;
@@ -2046,7 +2040,7 @@ import { selection } from './src/model/index.js';
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = '#000';
-      ctx.fill(state.sel.path, 'evenodd');
+      ctx.fill(selPath(), 'evenodd');
       ctx.restore();
       ctx.drawImage(d.sel, dx, dy);
     } else {
@@ -2090,7 +2084,7 @@ import { selection } from './src/model/index.js';
     grad.addColorStop(1, c2);
     ctx.save();
     ctx.globalAlpha = state.opacity;
-    if (state.sel.active) ctx.clip(state.sel.path, 'evenodd');
+    if (state.sel.active) ctx.clip(selPath(), 'evenodd');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
@@ -2177,7 +2171,7 @@ import { selection } from './src/model/index.js';
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     if (state.sel.active) {
       ctx.save();
-      ctx.clip(state.sel.path, 'evenodd');
+      ctx.clip(selPath(), 'evenodd');
       paintShape(ctx, d);
       ctx.restore();
     } else {
@@ -2265,7 +2259,7 @@ import { selection } from './src/model/index.js';
         const layer = activeLayer();
         const size = state.textSize;
         layer.ctx.save();
-        if (state.sel.active) layer.ctx.clip(state.sel.path, 'evenodd');
+        if (state.sel.active) layer.ctx.clip(selPath(), 'evenodd');
         layer.ctx.fillStyle = state.color;
         layer.ctx.font = `500 ${size}px ${FONTS[state.font]}`;
         layer.ctx.textBaseline = 'top';

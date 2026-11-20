@@ -7,4 +7,4 @@
  * Placeholder — chưa có mã nguồn. Implementer điền ở giai đoạn 3
  * (docs/plan-chuyen-module.md).
  */
-export {};
+export { selectionPath } from './selectionPath.js';
