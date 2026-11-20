@@ -188,9 +188,9 @@ contains(x, y) -> boolean          // core.maskPick(get().data, ...)
 revision() -> number
 configure({ getDocSize }) -> void  // BẮT BUỘC: () => ({w,h}) | null. Model không đọc global/state.
 ```
-**Nguồn kích thước doc:** `apply()` cần `w,h` để cấp mảng và tính bbox, nhưng `model` không được đọc `state`. Vì vậy `app.js` (sau này `shell`) gọi `configure({ getDocSize })` **một lần** ngay sau khi `state` được tạo; `getDocSize` trả `{w,h}` của doc hiện tại hoặc `null`. Nếu chưa configure hoặc doc null ⇒ `apply()` trả `null` và không đổi trạng thái.
+**Nguồn kích thước doc:** `apply()` cần `w,h` để cấp mảng và tính bbox, nhưng `model` không được đọc `state`. Vì vậy `shell/boot.js` (trước đây `app/app.js`) gọi `configure({ getDocSize })` **một lần** ngay sau khi `state` được tạo; `getDocSize` trả `{w,h}` của doc hiện tại hoặc `null`. Nếu chưa configure hoặc doc null ⇒ `apply()` trả `null` và không đổi trạng thái.
 
-`clear()` **không** đụng `selPreview`: preview thuộc `render`, `app.js` tự đặt `state.selPreview = null`.
+`clear()` **không** đụng `selPreview`: preview thuộc `render`, `shell/boot.js` (trước đây `app/app.js`) tự đặt `state.selPreview = null`.
 `model/selection.js` **không** được: dựng canvas, dựng Path2D, gọi `render`, gọi `pixel`, đọc DOM. Nó chỉ giữ bytes + bbox + rev.
 
 ### 4.7. `render/overlay.js` (tạo mới ở P3-5)
@@ -245,7 +245,7 @@ model.selection.apply(mask, mode);
 3. `sel.bbox` là **ảnh chụp tại thời điểm commit**, không tính lại, không sửa. Nó có thể không khớp nếu ai đó sửa `data` — bất biến #1 chặn việc đó.
 4. `sel.rev` tăng đơn điệu, +1 mỗi `apply/replace/clear`. Cache dẫn xuất **chỉ** được dùng lại khi `rev` trùng.
 5. Cache dẫn xuất giữ **tối đa 1 entry** mỗi module. Không Map theo rev (rò rỉ).
-6. `state.sel` trong `app.js` (và facade `store` ở P2) là **view**: gán `state.sel = x` phải đi qua `model.selection.replace(x)`; đọc `state.sel` trả `model.selection.get()`. Giai đoạn chuyển tiếp được phép có thêm `state.sel.mask` (canvas, **getter lazy**) và `state.sel.path` (Path2D, eager) — hai field này **biến mất** ở C5/C6.
+6. `state.sel` trong `shell/boot.js` (trước đây `app/app.js`; và facade `store` ở P2) là **view**: gán `state.sel = x` phải đi qua `model.selection.replace(x)`; đọc `state.sel` trả `model.selection.get()`. Giai đoạn chuyển tiếp được phép có thêm `state.sel.mask` (canvas, **getter lazy**) và `state.sel.path` (Path2D, eager) — hai field này **biến mất** ở C5/C6.
 
 ### 5.3. Undo — chính sách dứt khoát
 
@@ -306,7 +306,7 @@ Quy tắc luồng:
 - Mask chỉ đi **xuống** (tools → model → render/pixel). Không có chiều ngược.
 - `render` không bao giờ tạo mask; `pixel` không bao giờ gọi `requestAnts`.
 - `ui` không biết `MaskAlpha` tồn tại; nó chỉ thấy `{active, bbox}`.
-- `app.js` (hôm nay) / `shell` (P5) là nơi duy nhất nối `model.apply → render.requestAnts → ui.updateSelectionUI`.
+- `shell/boot.js` (trước đây `app/app.js`) là nơi duy nhất nối `model.apply → render.requestAnts → ui.updateSelectionUI`.
 
 ---
 

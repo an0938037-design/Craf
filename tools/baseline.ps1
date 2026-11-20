@@ -48,7 +48,7 @@ Write-Output "repo: $Repo"
 Write-Output ''
 
 $rows = @()
-$rows += Get-Stats (Join-Path $Repo 'app\app.js')     'app/app.js (monolith)'
+$rows += Get-Stats (Join-Path $Repo 'app\src\shell\boot.js') 'app/src/shell/boot.js (composition root)'
 $rows += Get-Stats (Join-Path $Repo 'app\index.html') 'app/index.html'
 $rows += Get-Stats (Join-Path $Repo 'app\style.css')  'app/style.css'
 

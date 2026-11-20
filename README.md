@@ -88,5 +88,5 @@ library/         bản vẽ đã lưu
 .cache/          ảnh thu nhỏ của ảnh Nott
 ```
 
-Không có bước build: sửa `app/app.js`, `app/style.css` hoặc `app/index.html`
-rồi tải lại trang.
+Không có bước build: sửa section tương ứng trong `app/src/`, rồi tải lại trang.
+Điểm vào duy nhất là `app/src/shell/index.js` → `shell/boot.js`.

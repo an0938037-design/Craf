@@ -26,7 +26,7 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 | 3 — pixel / render | 🔄 C3 xong (adapter), chưa nối | `300f04b`, `cfb8e8d` |
 | 4 — tools + bus | chưa bắt đầu | — |
 | 5 — ui / shell | chưa bắt đầu | — |
-| 6 — khoá lại | chưa bắt đầu | — |
+| 6 — khoá lại | ✅ xong (P6-3: A12 chưa chạy lại, soft/fill đang đối chứng) | — |
 
 ### Tiến độ đổi biểu diễn mask (C0–C8, hợp đồng `docs/contracts/mask.md`)
 
@@ -224,6 +224,33 @@ Một khác biệt **có sẵn từ trước**, không do refactor: sau khi undo
 lần (mở/đóng panel 3 lần, kiểm tra không nhân đôi hành vi); toàn bộ checklist
 hồi quy xanh trên desktop + 720px.
 **Lịch:** 3 ngày.
+
+### Trạng thái thực tế (2026-11-20)
+
+| Mục | Trạng thái | Commit |
+|---|---|---|
+| P5 — `ui/feedback`, `ui/start` + `model/presets` | ✅ | `a49bf8a` |
+| P5 — `ui/layers`, `ui/inspector`, `ui/adjust-panel` | ✅ | `refactor(ui): panel lop, mau va chinh mau sang ui/` |
+| P5 — `ui/menus`, `ui/drawer` | ✅ | `refactor(ui): menubar, pane, drawer, tro giup sang ui/` |
+| P5 — `shell/storage` | ✅ | `refactor(shell): cau luu tru HTTP + autosave + xuat anh` |
+| P5 — `shell/commands` | ✅ | `refactor(shell): bang command menubar sang shell/commands.js` |
+| P5 — `shell/keymap` | ✅ | `c684829` |
+| P5 — `ui/modals` + `ui/hero` | ✅ | `refactor(ui): modal size/transform/stroke + hero poster` |
+| P5/P6 — `shell/boot` + entry `shell/index.js`, xoá `app/app.js` | ✅ | `a1c9e47` |
+
+Kiểm chứng browser sau mỗi mốc: hash doc-space `7ab27801` (trống), `fffe201d`
+(sau nét cọ), undo/redo, save/autosave, export PNG↔JPEG, menu/pane/drawer/modal,
+toàn bộ keymap, 0 console error.
+
+Ngoại lệ kích thước file: `shell/boot.js` là composition root duy nhất và cố ý
+giữ phần điều phối (drawing engine, pointer, doc lifecycle) — mọi nghiệp vụ
+thuần đã nằm ở section rank thấp hơn.
+
+### Trạng thái giai đoạn 6
+
+- **P6-1** — Xoá `app/app.js`, cập nhật `docs/architecture.md` + README: ✅ (`a1c9e47`).
+- **P6-2** — Cổng ranh giới: ✅ `node tools/check-boundaries.mjs` → `KẾT QUẢ: SẠCH` (9 section, 66 file, 26 cạnh).
+- **P6-3** — Baseline/hồi quy: 9 hash doc-space khớp 100% bảng P2 trong `docs/contracts/mask-baseline.md` (chạy lại 2026-11-20). A12 (save → reload → mở lại) đã chạy lại: doc 1 lớp sau brush `fffe201d` → autosave → reload → mở lại vẫn `fffe201d`, vùng chọn không khôi phục, 0 lỗi console. Đối chứng soft/fill trên HEAD và `403b27c`: soft `285884f7` cả hai bên (baseline P4 `cfe7bfbc` không tái tạo được trên code cũ ⇒ ghi nhận sai, không hồi quy); fill `bf079686`, undo `7ab27801` khớp cả hai bên và baseline.
 
 ## Giai đoạn 6 — Khoá lại
 

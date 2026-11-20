@@ -14,10 +14,10 @@
 - `model`, `pixel`, trạng thái tool.
 - Đọc `state`.
 
-## Nhận từ `app/app.js`
+## Nhận từ `app/app.js` (nguồn gốc lịch sử)
 `hexToRgb`, `rgbToHex`, `rgbToHsl`, `hslToRgb`, `hslToHex`, `hexToHsl`; `shapeGeometry`, `previewGeometry`, `bezierPoints`; `maskCreate`, `maskAll`, `maskFromRect`, `maskBounds`, `maskPick`, `maskMerge`, `maskInvert`, `maskShiftInt`; `maskSegments`, `segmentsToCommands`.
 
-`pointInSelection`, `translateSelection`, `maskFromRect`/`maskFromPolygon` (adapter canvas) vẫn nằm ở `app/app.js` — P1-4 mới xong phần `core`, phần nối dây còn lại.
+`pointInSelection`, `translateSelection`, `maskFromRect`/`maskFromPolygon` (adapter canvas) và phần nối dây còn lại nay ở `shell/boot.js` (app/app.js đã xoá; xem trạng thái giai đoạn để biết chi tiết lịch sử).
 
 ## Cổng công khai
 `core/index.js`

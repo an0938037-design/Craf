@@ -17,7 +17,7 @@
 - `render`, `tools`, `ui`.
 - Tự gọi `render()` sau khi đổi dữ liệu — phát sự kiện, để `shell`/`render` quyết định.
 
-## Nhận từ `app/app.js`
+## Nhận từ `app/app.js` (nguồn gốc lịch sử)
 `state` (96-121), `sheetSize` (122), `makeCanvas` (302), `newLayer` (308), `copyCanvas` (313), `replaceLayerImage` (319), `uniqueName` (325), `createProject` (332), `openDoc` (347), `activeLayer` (397), `snapshotDoc` (1522), `pushDocHistory` (1534), `pushLayerHistory` (1542), `pushLayerSnapshot` (1551), `mergeDown`→`mergeAll` (1085-1130), `PRESETS` (85), `CRAF_SWATCHES` (91), `TEMPLATES` (215).
 
 ## Cổng công khai

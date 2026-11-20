@@ -22,12 +22,12 @@
 - Tự vẽ chrome ngoài overlay sân khấu.
 - Giữ state toàn cục ngoài phiên kéo hiện tại.
 
-## Đã nhận từ `app/app.js`
+## Đã nhận từ `app/app.js` (nguồn gốc lịch sử)
 C8: `beginMarquee`, `syncMarqueePreview` → `previewMarquee`, `finishMarquee` → `commitMarquee`, `wandSelect` → `wandSelectAt`.
 P4-5: `stampBrush`/`paintSegment` (phần điểm ảnh ở `pixel/brush.js`) + `beginDraw`/`moveDraw`/`endDraw` của cọ → `tools/brush.js`.
 P4-6: `gradientPaint`/`shapeGeometry`/`shapePath`/`paintShape` → `pixel/`; gesture move/shape/gradient, `FONTS` + rasterize chữ, `floodFill`, `pickColor`, `toDoc`, bảng `cursors`/`hints`/`showFill` → các file trên.
 
-`app.js` còn giữ phần **điều phối**: chọn layer, `push*History`, `render()`, `updateLayerThumb()`, `markDirty()`, `toast()` — những thứ này chuyển sang `shell`/`ui` ở giai đoạn 5.
+Phần **điều phối** (chọn layer, `push*History`, `render()`, `updateLayerThumb()`, `markDirty()`, `toast()`) nằm ở `shell/boot.js` — `tools` không import `ui`/`shell`.
 
 ## Cổng công khai
 `tools/index.js`

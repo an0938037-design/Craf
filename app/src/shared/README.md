@@ -15,7 +15,7 @@ Không import section nào.
 ## Điều kiện được vào `shared`
 Pure + không import section nào + không từ vựng domain. "Hai section cùng dùng" **không đủ** — nếu vậy đặt ở section cha chung gần nhất.
 
-## Nhận từ `app/app.js`
+## Nhận từ `app/app.js` (nguồn gốc lịch sử)
 `clamp` (8), `fmt` (12), `pad` (11), `uid` (9), `esc` (10).
 
 ## Cổng công khai

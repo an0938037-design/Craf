@@ -1,6 +1,9 @@
 # Kiến trúc Craf
 
-> Trạng thái: **khung rỗng**. `app/app.js` (3.585 dòng, 173 hàm, 570 chỗ đọc `state.`) vẫn là monolith đang chạy. Việc chuyển code vào các section thuộc `dev-team/implementer`, không phải việc của scaffolder.
+> Trạng thái: **đã tách xong**. Mọi nghiệp vụ nằm trong 9 section; `app/app.js` đã xoá ở P5-8.
+
+- **Entry point:** `index.html` chỉ nạp `app/src/shell/index.js`.
+- **Composition root:** `shell/boot.js` (boot/bind/configure, điều phối drawing/pointer/doc lifecycle), được `shell/index.js` nạp.
 
 ## Bản đồ section
 
@@ -13,8 +16,8 @@
 | `pixel` | 4 | Levels, filter, resample, fill, wand, encode | `pixel/index.js` |
 | `render` | 5 | Composite, viewport, thước, ants, preview | `render/index.js` |
 | `tools` | 6 | Máy trạng thái con trỏ | `tools/index.js` |
-| `ui` | 7 | Panel, menubar, modal, toast | `ui/index.js` |
-| `shell` | 8 | Boot, keymap, command, bus, storage | `shell/index.js` |
+| `ui` | 7 | Panel, menubar, modal, toast, poster hero | `ui/index.js` |
+| `shell` | 8 | Boot/composition root, keymap, command, storage | `shell/index.js` |
 
 ## Luật phụ thuộc
 
@@ -24,7 +27,7 @@ platform, shared  →  core  →  model  →  {pixel, render}  →  tools  →  
 
 - Một section chỉ import section có **rank thấp hơn**.
 - `pixel` và `render` là hai nhánh song song: **cấm** import nhau.
-- `tools` ⇄ `ui`: **cấm** import nhau. Đi qua `shell/bus.js`.
+- `tools` ⇄ `ui`: **cấm** import nhau. Giao tiếp qua `shared/emitter` (instance do `shell` tạo và tiêm).
 - Không import xuyên vào file nội bộ của section khác; dùng `index.js`.
 
 Nguồn sự thật máy đọc: `boundaries.json`. File này chỉ diễn giải — nếu lệch, `boundaries.json` thắng.

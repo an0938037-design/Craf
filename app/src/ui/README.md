@@ -19,7 +19,7 @@
 - Toán điểm ảnh.
 - Mutate doc trực tiếp; mọi thay đổi đi qua command.
 
-## Nhận từ `app/app.js`
+## Nhận từ `app/app.js` (nguồn gốc lịch sử)
 `toast` (70), `renderPresets` (128), `openCustomPreset` (148), `projectCard` (171), `timeAgo` (184), `renderRecent` (196), `renderTemplates` (221), `paintTemplatePreviews` (231), `renderNott` (264), `renderLayers` (946), `selectLayer` (1008), `startRename` (1015), `syncLayerProps` (1042), `renderPalette` (1444), `markSwatches` (1451), `setBgColor` (1456), `swapColors` (1463), `resetColors` (1470), `setColor` (1475), `setFill` (1503), `hslFromUI` (1508), `syncAdjustUI` (1147), `readAdjustUI` (1270), `resetAdjustUI` (1319), `bindMenubar` (3093), `openMenu` (3085), `closeMenus` (3077), `openPane` (3118), `openDrawer` (3063), `openHelp` (3073), `openExport` (1706), `openSizeModal` (2721), `openTransformModal` (2751), `openStrokeModal` (1881), `openDocBgPicker` (1927).
 
 Đã chuyển:
@@ -28,7 +28,7 @@
 - `layers.js` — `renderLayers`, `startRename`, `syncLayerProps` (P5-3). Đổi lớp đi qua `configure({ select, selectContent, toggleVisible, rename, reorder, paintThumb })`.
 - `inspector.js` + `adjust-panel.js` — panel màu và đồng bộ adjust (P5-3).
 - `menus.js` + `drawer.js` — menubar/pane và ngăn kéo/trợ giúp (P5-4).
-- `modals.js` — mở/đóng size, transform, stroke, màu nền + `sizeState()`; `apply*` vẫn ở `app.js` vì cần pixel/history (P5-7).
+- `modals.js` — mở/đóng size, transform, stroke, màu nền + `sizeState()`; `apply*` vẫn ở `shell/boot.js` vì cần pixel/history (P5-7).
 - `hero.js` — `paintHero` (P5-7).
 
 

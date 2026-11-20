@@ -132,6 +132,37 @@ Từ P2 trở đi, hash được tính trên **composite doc space** (canvas `do
 
 Kèm theo: A12 save → reload → mở lại cho hash `b7730475` y hệt trước khi lưu (4 layer, 0 lỗi console).
 
+## P6 — chạy lại 2026-11-20
+
+Môi trường: HEAD `a1c9e47`, doc Poster 1080×1350, fit zoom, hash doc-space FNV bước 7 (cùng phương pháp mục trên).
+
+| Bước | Hash doc space |
+|---|---|
+| `blank` | `7ab27801` |
+| `afterBrush` | `fffe201d` |
+| `afterPaste` | `b59bbf4d` |
+| `afterUndoPaste` | `fffe201d` |
+| `afterCut` | `7c2dce9a` |
+| `afterUndoCut` | `fffe201d` |
+| `afterMoveFrac` | `b692770c` |
+| `after20Undo` | `fffe201d` |
+| `after20Redo` | `b692770c` |
+
+9 hash **khớp 100%** bảng P2 ở trên.
+
+A12 (save → reload → mở lại) đã chạy lại trên HEAD: doc Poster 1 lớp sau nét cọ `fffe201d` → chờ autosave (`Đã lưu`) → reload → mở lại từ recent → vẫn `fffe201d`; vùng chọn **không** khôi phục (`selection.isActive() = false`); 0 lỗi console. Hash `b7730475` ở mục P2 thuộc doc 4 lớp của lần đo gốc, không tái tạo cùng nội dung nên chỉ so tính chất round-trip.
+
+Đối chứng soft brush/fill (P4) — chạy cùng một harness trên HEAD và worktree `403b27c` (pre-P5), doc Poster 1080×1350:
+
+| Phép | HEAD `a1c9e47` | `403b27c` | Baseline P4 | Kết luận |
+|---|---|---|---|---|
+| Blank | `7ab27801` | `7ab27801` | — | harness khớp |
+| Soft brush (h=0, poly 5 điểm) | `285884f7` | `285884f7` | `cfe7bfbc` | code cũ = mới ⇒ **không hồi quy**; baseline P4 không tái tạo được trên chính code cũ (sai/harness khác) |
+| Fill `#FF4D24` tại (540,675) | `bf079686` | `bf079686` | `bf079686` | **khớp** |
+| Undo fill | `7ab27801` | `7ab27801` | `7ab27801` | **khớp** |
+
+Kết luận P6: không có hồi quy pixel do refactor; chỉ số `cfe7bfbc` của P4 là ghi nhận sai/khác harness, không dùng làm chuẩn.
+
 ## Cách chạy lại
 
 1. Mở `http://127.0.0.1:7317/`, tạo doc Poster 1080×1350.

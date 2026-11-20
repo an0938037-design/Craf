@@ -16,10 +16,10 @@
 - Chạm panel DOM (`ui`).
 - Import `pixel`.
 
-## Nhận từ `app/app.js` (P3-1…P3-3)
+## Nhận từ `app/app.js` (nguồn gốc lịch sử, P3-1…P3-3)
 `compositeCanvas`/`updateLayerThumb` → `compositor.js`; `applyView`/`fit`/`setZoom`/`startPan`/`dragPan`/`endPan`/`moveRing` → `viewport.js`; `drawRulers`/`niceStep` → `rulers.js`.
 
-`viewport.configure({...})` được `app.js` gọi một lần lúc khởi tạo, truyền các element sân khấu (`area`, `board`, `holder`, `paper`, `overlay`, `ants`, `stage`, `brushRing`, `zoomLabel`) và `afterView` (đặt lại vị trí ô text). `render` không tự query panel.
+`viewport.configure({...})` được `shell/boot.js` gọi một lần lúc khởi tạo, truyền các element sân khấu (`area`, `board`, `holder`, `paper`, `overlay`, `ants`, `stage`, `brushRing`, `zoomLabel`) và `afterView` (đặt lại vị trí ô text). `render` không tự query panel.
 
 ## Cổng công khai
 `render/index.js`
