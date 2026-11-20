@@ -96,6 +96,22 @@ Chuỗi: brush 5 điểm → marquee 220,200→360,320 → `Ctrl+C` → `Ctrl+V`
 
 Cache C6 kiểm trong trình duyệt: `selectionPath(sel)` gọi 100 lần trả **cùng một object** (`===`), vẫn cùng object sau khi ants chạy vài frame (`rev` không đổi), trả object mới khi `rev` tăng, và trả `null` với đầu vào `null`.
 
+## Đối chứng pixel C7 — tách overlay/pixel
+
+C7a (`render/overlay.js`) và C7b (`pixel/{wand,fill,stroke,ops}.js`) là refactor thuần. Đo trên cùng doc Poster 1080×1350, cùng tab:
+
+| Thao tác | Hash / số đo | Trước C7 | Sau C7 |
+|---|---|---|---|
+| Wand tại (540,675), tol 32 | `bbox` + FNV `sel.data` + số px > 127 | 1080×1350 · `cb6d49b5` · 1.458.000 | **trùng** |
+| Fill tại (300,300) | hash khung vẽ | `f7f5f44c` | **trùng** |
+| Undo fill | hash khung vẽ | `f2d75b57` | **trùng** |
+| Viền 12px, center, màu fg | hash khung vẽ | `c743a826` | **trùng** |
+| Undo viền | hash khung vẽ | `2215a7fc` | **trùng** |
+| Crop theo vùng chọn 500×450 | kích thước `#paper` | 625×563 | **trùng** |
+| Chuỗi brush/paste/undo/cut/undo/move | 6 hash ở mục trên | — | **trùng cả 6** |
+
+Ants: rAF bị treo trong lúc `browser.evaluate` giữ main thread (đo được `rafPerSec = 0`), nên phải gọi `drawAnts()` thủ công để đếm. Rect 200×220 doc px: preview khi đang kéo = **2.100 px**, sau `pointerup` = **2.100 px**. Không có lỗi console.
+
 ## Cách chạy lại
 
 1. Mở `http://127.0.0.1:7317/`, tạo doc Poster 1080×1350.

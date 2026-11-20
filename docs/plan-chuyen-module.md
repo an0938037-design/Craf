@@ -37,8 +37,11 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 | C2 — `platform/path2d.js` | ✅ | `588ea16` | stroke tam giác: hash trùng `Path2D` gốc |
 | C3 — `pixel/mask.js` | ✅ | `300f04b`, `cfb8e8d` | 8 adapter kiểm bằng browser; `maskExtract` sửa để không đọc `sel.mask` |
 | C4 — switch biểu diễn | ✅ | `c76f855`, `9109c0b` | `sel.mask` lazy; đo cùng phiên 68,5 ms vs 96,7 ms code cũ |
-| C5 — bỏ `sel.mask` | chưa | — | phụ thuộc C4 |
-| C6 — bỏ `sel.path` | chưa | — | phụ thuộc C4 |
+| C5 — bỏ `sel.mask` | ✅ | `d44a386` | copy/cut/move/floodFill dùng `sel.data`; 0 chỗ đọc `state.sel.mask` |
+| C6 — bỏ `sel.path` | ✅ | `6f64b4a` | `render/selectionPath.js` cache 1-entry theo `rev`; cùng object qua 100 lần gọi + vài frame ants |
+| C7a — `render/overlay.js` | ✅ | `d3df02f`, `0e9ed52` | 5 hàm ants/preview + `configure` tiêm state; `previewGeometry` dùng bản `core` |
+| C7b — pixel ops | ✅ | `0a504bf` | `pixel/{wand,fill,stroke,ops}.js`; app.js chỉ còn orchestration |
+| C8 — `tools/marquee.js`, `tools/wand.js` | chưa | — | cần `shared/emitter.js` + tiêm bus trước |
 
 Nghiệm thu C1–C3 trên browser thật (2026-11-20, `http://127.0.0.1:7317/`):
 
