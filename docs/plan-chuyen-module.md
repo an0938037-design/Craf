@@ -22,7 +22,7 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 |---|---|---|
 | 0 — khung | ✅ xong | `03b3e72`, `d115640` |
 | 1 — platform / shared / core | ✅ xong | `e25522a`, `9218942`, `8fd6eab`, `969a5b5` |
-| 2 — model/store | 🔄 đang làm C4 | — |
+| 2 — model/store | 🔄 C4 xong (mask), store chưa bắt đầu | `c76f855`, `9109c0b` |
 | 3 — pixel / render | 🔄 C3 xong (adapter), chưa nối | `300f04b`, `cfb8e8d` |
 | 4 — tools + bus | chưa bắt đầu | — |
 | 5 — ui / shell | chưa bắt đầu | — |
@@ -36,7 +36,7 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 | C1 — `core/mask.js`, `core/path.js` | ✅ | `7b0c2ff` | fixture 3 ca trùng từng số; Porter-Duff 192/64/64 |
 | C2 — `platform/path2d.js` | ✅ | `588ea16` | stroke tam giác: hash trùng `Path2D` gốc |
 | C3 — `pixel/mask.js` | ✅ | `300f04b`, `cfb8e8d` | 8 adapter kiểm bằng browser; `maskExtract` sửa để không đọc `sel.mask` |
-| C4 — switch biểu diễn | 🔄 đang làm | — | điểm rollback chính |
+| C4 — switch biểu diễn | ✅ | `c76f855`, `9109c0b` | `sel.mask` lazy; đo cùng phiên 68,5 ms vs 96,7 ms code cũ |
 | C5 — bỏ `sel.mask` | chưa | — | phụ thuộc C4 |
 | C6 — bỏ `sel.path` | chưa | — | phụ thuộc C4 |
 
