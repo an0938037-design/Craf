@@ -1,10 +1,10 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
-import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers } from './src/pixel/index.js';
+import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
-import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
+import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
 
 (() => {
   'use strict';
@@ -66,6 +66,13 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     getSelection: () => selection.get(),
   });
   const area = $('#boardArea');
+  configureViewport({
+    area, board, holder, paper, overlay, ants,
+    stage: $('#stage'),
+    brushRing: $('#brushRing'),
+    zoomLabel: $('#zoomVal'),
+    afterView: () => positionTextEditor(),
+  });
 
   /* ------------------------------------------------------------------ start screen */
   function renderPresets() {
@@ -320,45 +327,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   }
 
   /* ------------------------------------------------------------------ view / render */
-  function applyView() {
-    if (!state.doc) return;
-    const { zoom, x, y } = state.view;
-    const cssW = Math.max(1, state.doc.w * zoom);
-    const cssH = Math.max(1, state.doc.h * zoom);
-    board.style.width = cssW + 'px';
-    board.style.height = cssH + 'px';
-    holder.style.transform = `translate(${x}px, ${y}px)`;
-    const ratio = dpr();
-    const bw = Math.max(1, Math.round(cssW * ratio));
-    const bh = Math.max(1, Math.round(cssH * ratio));
-    if (paper.width !== bw || paper.height !== bh) {
-      paper.width = bw; paper.height = bh;
-      overlay.width = bw; overlay.height = bh;
-      ants.width = bw; ants.height = bh;
-    }
-    render();
-    drawRulers();
-    requestAnts();
-    $('#zoomVal').textContent = Math.round(zoom * 100) + '%';
-  }
-
   function render() {
-    if (!state.doc) return;
-    const ctx = paper.getContext('2d');
-    const ratio = dpr() * state.view.zoom;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, paper.width, paper.height);
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.fillStyle = state.doc.bg;
-    ctx.fillRect(0, 0, state.doc.w, state.doc.h);
-    for (const layer of state.doc.layers) {
-      if (!layer.visible || layer.opacity <= 0) continue;
-      ctx.globalAlpha = layer.opacity / 100;
-      ctx.globalCompositeOperation = layer.blend || 'source-over';
-      ctx.drawImage(layer.canvas, 0, 0);
-    }
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
+    renderDoc();
   }
 
   let renderQueued = false;
@@ -461,135 +431,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
       if (on && state.sel.bbox) st.textContent = `CHỌN ${fmt(state.sel.bbox.w)}×${fmt(state.sel.bbox.h)}`;
     }
     if (scope) scope.textContent = on ? 'trong vùng chọn' : 'toàn lớp';
-  }
-
-  function fit() {
-    if (!state.doc) return;
-    const r = area.getBoundingClientRect();
-    const padX = 58, padY = 54, ruler = 24;
-    const z = Math.min((r.width - ruler - padX * 2) / state.doc.w, (r.height - ruler - padY * 2) / state.doc.h);
-    const zoom = clamp(z, 0.04, 3);
-    state.view.zoom = zoom;
-    state.view.x = ruler + (r.width - ruler - state.doc.w * zoom) / 2;
-    state.view.y = ruler + (r.height - ruler - state.doc.h * zoom) / 2;
-    state.fitMode = true;
-    applyView();
-    positionTextEditor();
-  }
-
-  function setZoom(z, cx, cy) {
-    if (!state.doc) return;
-    const r = area.getBoundingClientRect();
-    const ax = cx == null ? r.width / 2 : cx - r.left;
-    const ay = cy == null ? r.height / 2 : cy - r.top;
-    const docX = (ax - state.view.x) / state.view.zoom;
-    const docY = (ay - state.view.y) / state.view.zoom;
-    const zoom = clamp(z, 0.04, 8);
-    state.view.zoom = zoom;
-    state.view.x = ax - docX * zoom;
-    state.view.y = ay - docY * zoom;
-    state.fitMode = false;
-    applyView();
-    positionTextEditor();
-  }
-
-  function drawRulers() {
-    if (!state.doc) return;
-    const left = 24, top = 24;
-    const rx = $('#rulerX'), ry = $('#rulerY');
-    if (!rx.firstChild) {
-      const a = makeCanvas(10, 10); a.className = 'ruler-canvas'; rx.appendChild(a);
-      const b = makeCanvas(10, 10); ry.appendChild(b);
-    }
-    const ratio = dpr();
-    const areaRect = area.getBoundingClientRect();
-    const rxRect = rx.getBoundingClientRect();
-    const ryRect = ry.getBoundingClientRect();
-    const cx = rx.firstChild, cyr = ry.firstChild;
-    cx.width = Math.max(1, Math.round(rxRect.width * ratio));
-    cx.height = Math.max(1, Math.round(rxRect.height * ratio));
-    cyr.width = Math.max(1, Math.round(ryRect.width * ratio));
-    cyr.height = Math.max(1, Math.round(ryRect.height * ratio));
-    const gx = cx.getContext('2d');
-    const gy = cyr.getContext('2d');
-    gx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    gy.setTransform(ratio, 0, 0, ratio, 0, 0);
-    gx.clearRect(0, 0, rxRect.width, rxRect.height);
-    gy.clearRect(0, 0, ryRect.width, ryRect.height);
-    gx.font = '8px "Geist Mono", monospace';
-    gx.fillStyle = 'rgba(242,238,229,.42)';
-    gx.strokeStyle = 'rgba(242,238,229,.22)';
-    gy.font = '8px "Geist Mono", monospace';
-    gy.fillStyle = 'rgba(242,238,229,.42)';
-    gy.strokeStyle = 'rgba(242,238,229,.22)';
-
-    const zoom = state.view.zoom;
-    const step = niceStep(84 / zoom);
-    const minor = step / 5;
-    const x0 = state.view.x; // screen x of doc 0 inside the board area
-    const y0 = state.view.y;
-    const xStart = Math.floor((left - x0) / zoom / step) * step;
-    const xEnd = (areaRect.width - x0) / zoom;
-    const yStart = Math.floor((top - y0) / zoom / step) * step;
-    const yEnd = (areaRect.height - y0) / zoom;
-    const xLocal = (docX) => x0 + docX * zoom - left;
-    const yLocal = (docY) => y0 + docY * zoom - top;
-
-    gx.lineWidth = 1;
-    if (minor * zoom > 6) {
-      gx.beginPath();
-      for (let v = Math.floor(xStart / minor) * minor; v <= xEnd; v += minor) {
-        const px = xLocal(v);
-        if (px < 0 || px > rxRect.width) continue;
-        gx.moveTo(px, rxRect.height - 4);
-        gx.lineTo(px, rxRect.height);
-      }
-      gx.stroke();
-    }
-    gx.beginPath();
-    for (let v = xStart; v <= xEnd; v += step) {
-      const px = xLocal(v);
-      if (px < -20 || px > rxRect.width + 20) continue;
-      gx.moveTo(px, rxRect.height - 9);
-      gx.lineTo(px, rxRect.height);
-      if (v >= 0) gx.fillText(String(v), px + 3, 9);
-    }
-    gx.stroke();
-
-    gy.lineWidth = 1;
-    if (minor * zoom > 6) {
-      gy.beginPath();
-      for (let v = Math.floor(yStart / minor) * minor; v <= yEnd; v += minor) {
-        const py = yLocal(v);
-        if (py < 0 || py > ryRect.height) continue;
-        gy.moveTo(ryRect.width - 4, py);
-        gy.lineTo(ryRect.width, py);
-      }
-      gy.stroke();
-    }
-    gy.beginPath();
-    for (let v = yStart; v <= yEnd; v += step) {
-      const py = yLocal(v);
-      if (py < -20 || py > ryRect.height + 20) continue;
-      gy.moveTo(ryRect.width - 9, py);
-      gy.lineTo(ryRect.width, py);
-      if (v >= 0 && step * zoom > 26) {
-        gy.save();
-        gy.translate(10, py + 2);
-        gy.rotate(-Math.PI / 2);
-        gy.textAlign = 'right';
-        gy.fillText(String(v), 0, 0);
-        gy.restore();
-      }
-    }
-    gy.stroke();
-  }
-
-  function niceStep(target) {
-    const pow = Math.pow(10, Math.floor(Math.log10(Math.max(1, target))));
-    const n = target / pow;
-    const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-    return Math.max(1, mult * pow);
   }
 
   /* ------------------------------------------------------------------ layers UI */
@@ -764,10 +605,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     if (!row) return;
     const c = row.querySelector('canvas');
     if (!c) return;
-    const ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, 76, 76);
-    const s = Math.min(76 / state.doc.w, 76 / state.doc.h);
-    ctx.drawImage(activeLayer().canvas, (76 - state.doc.w * s) / 2, (76 - state.doc.h * s) / 2, state.doc.w * s, state.doc.h * s);
+    drawLayerThumb(c.getContext('2d'), activeLayer(), state.doc);
   }
 
   /* ------------------------------------------------------------------ adjustments / filters */
@@ -817,7 +655,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
       state.adjust = {
         id: layer.id,
         original: copyCanvas(layer.canvas),
-        origSrc: layer.canvas.toDataURL('image/png'),
+        origSrc: pngDataURL(layer.canvas),
         vals: adjustDefaults(),
         pushed: false,
       };
@@ -826,55 +664,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     return state.adjust;
   }
 
-  function adjustFilter(v) {
-    const parts = [];
-    if (v.bright) parts.push(`brightness(${100 + v.bright}%)`);
-    if (v.contrast) parts.push(`contrast(${100 + v.contrast}%)`);
-    if (v.saturate !== 100) parts.push(`saturate(${v.saturate}%)`);
-    if (v.hue) parts.push(`hue-rotate(${v.hue}deg)`);
-    if (v.blur) parts.push(`blur(${v.blur}px)`);
-    if (v.gray) parts.push('grayscale(1)');
-    if (v.sepia) parts.push('sepia(1)');
-    if (v.invert) parts.push('invert(1)');
-    return parts.length ? parts.join(' ') : 'none';
-  }
-
   function paintClippedOver(layer, original, filtered) {
-    const ctx = layer.ctx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0, 0, state.doc.w, state.doc.h);
-    ctx.drawImage(original, 0, 0);
-    if (state.sel.active) {
-      ctx.save();
-      ctx.clip(selPath(), 'evenodd');
-      ctx.drawImage(filtered, 0, 0);
-      ctx.restore();
-    } else {
-      ctx.drawImage(filtered, 0, 0);
-    }
-  }
-
-  function applyLevels(canvas, black, white, gamma) {
-    if (black === 0 && white === 255 && Math.abs(gamma - 1) < 0.001) return canvas;
-    const g = canvas.getContext('2d');
-    const img = g.getImageData(0, 0, canvas.width, canvas.height);
-    const d = img.data;
-    const range = Math.max(1, white - black);
-    const lut = new Uint8ClampedArray(256);
-    for (let i = 0; i < 256; i++) {
-      const n = clamp((i - black) / range, 0, 1);
-      lut[i] = Math.round(255 * Math.pow(n, 1 / gamma));
-    }
-    for (let i = 0; i < d.length; i += 4) {
-      if (!d[i + 3]) continue;
-      d[i] = lut[d[i]];
-      d[i + 1] = lut[d[i + 1]];
-      d[i + 2] = lut[d[i + 2]];
-    }
-    g.putImageData(img, 0, 0);
-    return canvas;
+    paintClipped(layer, original, filtered, state.sel.active ? selPath() : null);
   }
 
   function renderAdjustPreview() {
@@ -958,104 +749,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     }
   }
 
-  function convolveCanvas(src, kernel, divisor = 1, offset = 0) {
-    const w = src.width, h = src.height;
-    const sctx = src.getContext('2d');
-    const img = sctx.getImageData(0, 0, w, h);
-    const out = sctx.createImageData(w, h);
-    const sd = img.data, od = out.data;
-    for (let y = 1; y < h - 1; y++) {
-      for (let x = 1; x < w - 1; x++) {
-        const i = (y * w + x) * 4;
-        if (sd[i + 3] === 0) continue;
-        let r = 0, g = 0, b = 0;
-        for (let ky = -1; ky <= 1; ky++) {
-          for (let kx = -1; kx <= 1; kx++) {
-            const j = ((y + ky) * w + (x + kx)) * 4;
-            const k = kernel[(ky + 1) * 3 + (kx + 1)];
-            r += sd[j] * k;
-            g += sd[j + 1] * k;
-            b += sd[j + 2] * k;
-          }
-        }
-        od[i] = clamp(r / divisor + offset, 0, 255);
-        od[i + 1] = clamp(g / divisor + offset, 0, 255);
-        od[i + 2] = clamp(b / divisor + offset, 0, 255);
-        od[i + 3] = sd[i + 3];
-      }
-    }
-    const c = makeCanvas(w, h);
-    c.getContext('2d').putImageData(out, 0, 0);
-    return c;
-  }
-
-  function filterCanvas(original, kind) {
-    const { w, h } = state.doc;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
-    if (kind === 'blur') {
-      g.filter = 'blur(4px)';
-      g.drawImage(original, 0, 0);
-      g.filter = 'none';
-    } else if (kind === 'gray' || kind === 'sepia' || kind === 'invert') {
-      g.filter = kind === 'gray' ? 'grayscale(1)' : kind === 'sepia' ? 'sepia(1)' : 'invert(1)';
-      g.drawImage(original, 0, 0);
-      g.filter = 'none';
-    } else if (kind === 'sharpen') {
-      g.drawImage(convolveCanvas(original, [0, -1, 0, -1, 5, -1, 0, -1, 0]), 0, 0);
-    } else if (kind === 'emboss') {
-      g.drawImage(convolveCanvas(original, [-2, -1, 0, -1, 1, 1, 0, 1, 2], 1, 128), 0, 0);
-    } else if (kind === 'vignette') {
-      g.drawImage(original, 0, 0);
-      const cx = w / 2, cy = h / 2;
-      const radius = Math.hypot(w, h) / 2;
-      const grad = g.createRadialGradient(cx, cy, radius * 0.34, cx, cy, radius);
-      grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.58, 'rgba(0,0,0,0.06)');
-      grad.addColorStop(1, 'rgba(0,0,0,0.74)');
-      g.globalCompositeOperation = 'source-atop';
-      g.fillStyle = grad;
-      g.fillRect(0, 0, w, h);
-      g.globalCompositeOperation = 'source-over';
-    } else if (kind === 'grain') {
-      g.drawImage(original, 0, 0);
-      const img = g.getImageData(0, 0, w, h);
-      const d = img.data;
-      for (let i = 0; i < d.length; i += 4) {
-        if (!d[i + 3]) continue;
-        const luma = (d[i] + d[i + 1] + d[i + 2]) / 3;
-        const amp = 0.65 + (1 - luma / 255) * 0.55;
-        const n = (Math.random() - 0.5) * 58 * amp;
-        d[i] = clamp(d[i] + n, 0, 255);
-        d[i + 1] = clamp(d[i + 1] + n, 0, 255);
-        d[i + 2] = clamp(d[i + 2] + n, 0, 255);
-      }
-      g.putImageData(img, 0, 0);
-    } else if (kind === 'pixel') {
-      const sw = Math.max(1, Math.round(w / 16));
-      const sh = Math.max(1, Math.round(h / 16));
-      const small = makeCanvas(sw, sh);
-      small.getContext('2d').drawImage(original, 0, 0, sw, sh);
-      g.imageSmoothingEnabled = false;
-      g.drawImage(small, 0, 0, w, h);
-      g.imageSmoothingEnabled = true;
-    } else if (kind === 'noise') {
-      const img = original.getContext('2d').getImageData(0, 0, w, h);
-      const d = img.data;
-      for (let i = 0; i < d.length; i += 4) {
-        if (!d[i + 3]) continue;
-        const n = (Math.random() - 0.5) * 54;
-        d[i] = clamp(d[i] + n, 0, 255);
-        d[i + 1] = clamp(d[i + 1] + n, 0, 255);
-        d[i + 2] = clamp(d[i + 2] + n, 0, 255);
-      }
-      c.getContext('2d').putImageData(img, 0, 0);
-    } else {
-      g.drawImage(original, 0, 0);
-    }
-    return c;
-  }
-
   function applyFilter(kind, done) {
     if (!state.doc) return;
     finishAdjust();
@@ -1063,7 +756,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     if (!layer) return;
     pushLayerHistory();
     const original = copyCanvas(layer.canvas);
-    const filtered = filterCanvas(original, kind);
+    const filtered = filterCanvas(original, kind, state.doc.w, state.doc.h);
     paintClippedOver(layer, original, filtered);
     render();
     updateLayerThumb();
@@ -1151,7 +844,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
 
   /* ------------------------------------------------------------------ history */
   function snapshotDoc() {
-    return docSnapshot(state.doc, state.active, (l) => l.canvas.toDataURL('image/png'));
+    return docSnapshot(state.doc, state.active, (l) => pngDataURL(l.canvas));
   }
 
   function pushDocHistory() {
@@ -1163,7 +856,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   function pushLayerHistory() {
     const l = activeLayer();
     if (!l) return;
-    pushLayer({ kind: 'layer', id: l.id, src: l.canvas.toDataURL('image/png') });
+    pushLayer({ kind: 'layer', id: l.id, src: pngDataURL(l.canvas) });
     syncHistoryButtons();
   }
 
@@ -1174,7 +867,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
 
   function currentLayerSrc(id) {
     const l = state.doc.layers.find((x) => x.id === id);
-    return l ? l.canvas.toDataURL('image/png') : null;
+    return l ? pngDataURL(l.canvas) : null;
   }
 
   async function applySnapshot(snap) {
@@ -1259,30 +952,13 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
 
   /* ------------------------------------------------------------------ save / export / nott */
   function compositeCanvas(w, h, transparent = false) {
-    const c = makeCanvas(w, h);
-    const ctx = c.getContext('2d');
-    if (!transparent) {
-      ctx.fillStyle = state.doc.bg;
-      ctx.fillRect(0, 0, w, h);
-    }
-    const sx = w / state.doc.w, sy = h / state.doc.h;
-    for (const l of state.doc.layers) {
-      if (!l.visible || l.opacity <= 0) continue;
-      ctx.globalAlpha = l.opacity / 100;
-      ctx.globalCompositeOperation = l.blend || 'source-over';
-      ctx.setTransform(sx, 0, 0, sy, 0, 0);
-      ctx.drawImage(l.canvas, 0, 0);
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    return c;
+    return compositeDoc(state.doc, w, h, transparent);
   }
 
   function thumbData() {
     const w = Math.min(480, state.doc.w);
     const h = Math.round(w * state.doc.h / state.doc.w);
-    return compositeCanvas(w, h).toDataURL('image/jpeg', 0.84);
+    return jpegDataURL(compositeCanvas(w, h), 0.84);
   }
 
   async function saveNow() {
@@ -1291,7 +967,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     state.saving = true;
     setSaveState('saving');
     const doc = state.doc;
-    const payload = toPayload(doc, (l) => l.canvas.toDataURL('image/png'), thumbData());
+    const payload = toPayload(doc, (l) => pngDataURL(l.canvas), thumbData());
     try {
       const res = await api('/api/projects', payload);
       state.dirty = false;
@@ -1369,7 +1045,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     if (!n.ok) { toast('Không thấy thư mục Nott trên máy', 'err'); openDrawer(); return; }
     try {
       await saveNow();
-      const png = compositeCanvas(state.doc.w, state.doc.h).toDataURL('image/png');
+      const png = pngDataURL(compositeCanvas(state.doc.w, state.doc.h));
       const res = await api('/api/nott/send', {
         name: state.doc.name, w: state.doc.w, h: state.doc.h, png,
         note: 'Vẽ trên Craf — mở ảnh trong notes/files để xem bản đầy đủ.',
@@ -1956,8 +1632,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const r = paper.getBoundingClientRect();
     const x = Math.floor((e.clientX - r.left) * paper.width / r.width);
     const y = Math.floor((e.clientY - r.top) * paper.height / r.height);
-    const data = paper.getContext('2d').getImageData(clamp(x, 0, paper.width - 1), clamp(y, 0, paper.height - 1), 1, 1).data;
-    setColor(rgbToHex(data[0], data[1], data[2]));
+    setColor(sampleHex(paper, x, y));
     setTool('brush');
     toast('Đã lấy màu ' + state.color, 'ok', 1600);
   }
@@ -2020,13 +1695,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   }
 
   /* ------------------------------------------------------------------ pointer / pan */
-  function startPan(e) {
-    state.panning = { x: e.clientX, y: e.clientY, vx: state.view.x, vy: state.view.y };
-    state.fitMode = false;
-    try { overlay.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-    $('#stage').style.cursor = 'grabbing';
-  }
-
   overlay.addEventListener('pointerdown', (e) => {
     if (!state.doc) return;
     if (e.button === 1 || state.space || state.tool === 'hand') { e.preventDefault(); startPan(e); return; }
@@ -2037,12 +1705,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
 
   overlay.addEventListener('pointermove', (e) => {
     if (!state.doc) return;
-    if (state.panning) {
-      state.view.x = state.panning.vx + (e.clientX - state.panning.x);
-      state.view.y = state.panning.vy + (e.clientY - state.panning.y);
-      applyView();
-      return;
-    }
+    if (state.panning) { dragPan(e); return; }
     const pt = toDoc(e);
     $('#cursorPos').textContent = 'X ' + fmt(pt.x) + '  Y ' + fmt(pt.y);
     moveRing(e);
@@ -2050,11 +1713,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   });
 
   overlay.addEventListener('pointerup', (e) => {
-    if (state.panning) {
-      state.panning = null;
-      $('#stage').style.cursor = '';
-      return;
-    }
+    if (state.panning) { endPan(); return; }
     if (state.draw) endDraw(e);
   });
 
@@ -2069,20 +1728,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     state.panning = null;
   });
 
-  overlay.addEventListener('pointerleave', () => { $('#brushRing').hidden = true; $('#cursorPos').textContent = 'X —  Y —'; });
-  overlay.addEventListener('pointerenter', () => { if (state.tool === 'brush' || state.tool === 'eraser') $('#brushRing').hidden = false; });
-
-  function moveRing(e) {
-    const ring = $('#brushRing');
-    if (state.tool !== 'brush' && state.tool !== 'eraser') { ring.hidden = true; return; }
-    const r = area.getBoundingClientRect();
-    const sizePx = Math.max(4, state.size * state.view.zoom);
-    ring.hidden = false;
-    ring.style.width = sizePx + 'px';
-    ring.style.height = sizePx + 'px';
-    ring.style.left = (e.clientX - r.left) + 'px';
-    ring.style.top = (e.clientY - r.top) + 'px';
-  }
+  overlay.addEventListener('pointerleave', () => { hideRing(); $('#cursorPos').textContent = 'X —  Y —'; });
+  overlay.addEventListener('pointerenter', () => { showRing(); });
 
   area.addEventListener('wheel', (e) => {
     if (!state.doc) return;

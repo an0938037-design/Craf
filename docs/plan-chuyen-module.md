@@ -159,6 +159,28 @@ Lịch: 3–4 ngày (B chờ A khoảng nửa ngày đầu, dùng thời gian đ
 nhấp nháy; zoom/pan không lệch tâm; cổng chứng minh `render` **không** import `pixel`.
 **Song song:** A làm render, B làm pixel — không chạm file nhau. Lịch: 3 ngày.
 
+### Trạng thái giai đoạn 3 (đã xong nhánh `render` + `adjust/sample/encode`)
+
+| Việc | Kết quả |
+|---|---|
+| `render/compositor.js` | `paintDoc`, `compositeDoc`, `drawLayerThumb` — thay `compositeCanvas`/`updateLayerThumb`/thân `render()` |
+| `render/viewport.js` | `configure`, `renderDoc`, `applyView`, `fit`, `setZoom`, `startPan`, `dragPan`, `endPan`, `moveRing`, `hideRing`, `showRing` |
+| `render/rulers.js` | `drawRulers`, `niceStep` |
+| `pixel/adjust.js` | `adjustFilter`, `applyLevels`, `convolveCanvas`, `filterCanvas`, `paintClippedOver` — gộp cả `filters.js` vào đây vì cùng một luật "nhận canvas → trả canvas" |
+| `pixel/sample.js` | `sampleHex(canvas, x, y)` |
+| `pixel/encode.js` | `pngDataURL`, `jpegDataURL` |
+
+Kiểm trong trình duyệt (Poster 1080×1350, hash doc space `fffe201d` sau nét cọ):
+brush giữ nguyên hash; `filterGray` → `2ec507f7`, undo về `fffe201d`; adjust
+`bright=40` → `ea5c6538`, undo về `fffe201d`; zoom 100% ↔ vừa khung đổi
+`#paper` 1350×1688 ↔ 425×531, thước vẽ lại; pan chuột giữa lệch đúng `+40/+25`;
+vòng cọ 5.67px = 18×0.315; lấy màu trả `#F8F5EE` và tự chuyển về bút; save →
+reload → mở lại `1d6daeaf` y hệt. 0 lỗi console.
+
+`resizeImage`/`resizeCanvas`/`flipDoc`/`rotateDoc`/`applyLayerTransform` (P3-2)
+vẫn ở `app.js` vì chúng đổi `doc.w/h`, `state.view` và history trong cùng một
+hàm — tách raster thuần sẽ làm ở giai đoạn 3b nếu cần.
+
 ## Giai đoạn 4 — `tools` + bus (điểm ghép lỏng nhất)
 
 | ID | Việc | Owner | Ngày | Phụ thuộc |

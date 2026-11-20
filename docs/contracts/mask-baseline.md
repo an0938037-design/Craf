@@ -112,6 +112,26 @@ C7a (`render/overlay.js`) và C7b (`pixel/{wand,fill,stroke,ops}.js`) là refact
 
 Ants: rAF bị treo trong lúc `browser.evaluate` giữ main thread (đo được `rafPerSec = 0`), nên phải gọi `drawAnts()` thủ công để đếm. Rect 200×220 doc px: preview khi đang kéo = **2.100 px**, sau `pointerup` = **2.100 px**. Không có lỗi console.
 
+## Đối chứng model P2 — hash theo **doc space**, không theo khung vẽ
+
+Suite C5–C7 ở trên băm buffer `#paper`, mà buffer này có kích thước `doc × dpr × zoom`. Ở chế độ vừa khung (fit) doc Poster cho `#paper` = 425×531, còn ở 100% là 1350×1688 — **hai buffer khác nhau nên hash khác nhau dù pixel doc y hệt**. Đó là lý do các lần ép `1` (100%) cho `afterBrush = 6ec0bc9` thay vì `e2939a19`: artifact của harness, không phải regression.
+
+Từ P2 trở đi, hash được tính trên **composite doc space** (canvas `doc.w × doc.h`, tô `bg`, vẽ từng layer theo `visible/opacity/blend`, FNV trên `getImageData`), nên độc lập hoàn toàn với zoom:
+
+| Bước | Hash doc space | Ghi chú |
+|---|---|---|
+| `blank` (chưa vẽ) | `7ab27801` | |
+| `afterBrush` | `fffe201d` | |
+| `afterPaste` | `b59bbf4d` | |
+| `afterUndoPaste` | `fffe201d` | **trùng `afterBrush`** |
+| `afterCut` | `7c2dce9a` | |
+| `afterUndoCut` | `fffe201d` | **trùng `afterBrush`** |
+| `afterMoveFrac` | `b692770c` | |
+| 20× undo | `fffe201d` | dừng đúng ở mốc sau brush (blank không vào history) |
+| 20× redo | `b692770c` | **trùng `afterMoveFrac`** |
+
+Kèm theo: A12 save → reload → mở lại cho hash `b7730475` y hệt trước khi lưu (4 layer, 0 lỗi console).
+
 ## Cách chạy lại
 
 1. Mở `http://127.0.0.1:7317/`, tạo doc Poster 1080×1350.

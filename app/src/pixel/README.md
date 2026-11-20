@@ -6,9 +6,12 @@
 - `fill.js` — `floodFillLayer(ctx, w, h, x, y, fillHex, tol, selData)`: flood fill có cổng vùng chọn.
 - `stroke.js` — `strokePath`, `fillPath`, `clearPath`: viền/tô/xoá theo `Path2D` + tham số.
 - `layers.js` — `createLayer`, `copyCanvas`, `replaceLayerImage`, `mergeLayerInto`, `flattenLayers` (canvas của layer).
-- `ops.js` — `cropCanvas(canvas, rect)`; các phép resize/flip/rotate sẽ chuyển tiếp ở P3-2.
+- `ops.js` — `cropCanvas(canvas, rect)`; các phép resize/flip/rotate sẽ chuyển tiếp ở P3-2 (hiện còn ở `app.js` vì đụng `doc`/history).
+- `adjust.js` — `adjustFilter`, `applyLevels`, `convolveCanvas`, `filterCanvas`, `paintClippedOver` (P3-4).
+- `sample.js` — `sampleHex(canvas, x, y)` cho công cụ lấy màu (P3-5).
+- `encode.js` — `pngDataURL`, `jpegDataURL`: một chỗ duy nhất quyết định định dạng ảnh lưu/thumbnail (P3-5).
 
-Chưa chuyển (P3-1/P3-3/P3-5): `adjust.js` (`applyLevels`), `filters.js`, `sample.js` (`pickColor`), `encode.js` (`runExport`, `thumbData`), phần rasterize clipboard (`copySelection` đã dùng `maskExtract`; `pasteClipboard` còn 1 `drawImage` trong `app.js`).
+Chưa chuyển: phần rasterize clipboard (`pasteClipboard` còn 1 `drawImage` trong `app.js`).
 
 ## May use
 `model`, `core`, `shared`

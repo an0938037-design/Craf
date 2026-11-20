@@ -11,3 +11,6 @@ export { wandMask } from './wand.js';
 export { floodFillLayer } from './fill.js';
 export { strokePath, fillPath, clearPath } from './stroke.js';
 export { cropCanvas } from './ops.js';
+export { adjustFilter, applyLevels, convolveCanvas, filterCanvas, paintClippedOver } from './adjust.js';
+export { sampleHex } from './sample.js';
+export { pngDataURL, jpegDataURL } from './encode.js';
