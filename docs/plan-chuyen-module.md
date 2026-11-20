@@ -237,7 +237,7 @@ hồi quy xanh trên desktop + 720px.
 | P5 — `shell/keymap` | ✅ | `c684829` |
 | P5 — `ui/modals` + `ui/hero` | ✅ | `refactor(ui): modal size/transform/stroke + hero poster` |
 | P5/P6 — `shell/boot` + entry `shell/index.js`, xoá `app/app.js` | ✅ | `a1c9e47` |
-| P5-9 — `shell/documents` + `shell/geometry` | ✅ | merge `c6a43f3` (nhánh `p5split`, commit `b3b6e6f`) |
+| P5-9 — `shell/documents` + `shell/geometry` | ✅ | merge `c6a43f3` (nhánh `p5split`, commit `b3b6e6f`); audit: thân 19 hàm trùng bản gốc sau khi bỏ tiền tố `deps.`, named import OK |
 
 Kiểm chứng browser sau mỗi mốc: hash doc-space `7ab27801` (trống), `fffe201d`
 (sau nét cọ), undo/redo, save/autosave, export PNG↔JPEG, menu/pane/drawer/modal,
