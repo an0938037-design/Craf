@@ -4,8 +4,8 @@
  * Chỉ export qua file này. Section khác không được import file nội bộ.
  * Hợp đồng Owns / May use / Must not: xem ./README.md
  *
- * Placeholder — chưa có mã nguồn. Implementer điền ở giai đoạn 2
- * (docs/plan-chuyen-module.md). Đây là giai đoạn rủi ro nhất: 570 chỗ đọc
- * `state.` trong app.js phải đi qua store.
+ * `selection.js` — `Selection {rev,w,h,data,bbox}` + `apply/clear/get/isActive/contains/revision`.
+ * `store.js` — `state` + `get/set/subscribe` (facade của giai đoạn 2).
  */
 export * as selection from './selection.js';
+export { state, get, set, subscribe, emit } from './store.js';

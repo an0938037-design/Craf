@@ -2,9 +2,9 @@
 
 ## Owns
 - `color.js` — `hexToRgb`, `rgbToHex`, `rgbToHsl`, `hslToRgb`, `hslToHex`, `hexToHsl`.
-- `geometry.js` — `shapeGeometry`, `bezierPoints`, `pointInSelection`, `selectionBounds`, phép biến đổi ma trận 2D.
-- `mask.js` — mask dưới dạng `Uint8Array`: rect, polygon, chuyển vị, union/intersect/diff, đảo.
-- `path.js` — `maskSegments`, `pathFromSegments` trả về **mảng lệnh**, không `Path2D`.
+- `geometry.js` — `shapeGeometry`, `previewGeometry`, `bezierPoints` (hình học con trỏ).
+- `mask.js` — mask dưới dạng `Uint8Array`: tạo, rect, bounds, pick, merge (Porter-Duff), đảo, dịch nguyên.
+- `path.js` — `maskSegments`, `segmentsToCommands` trả về **mảng lệnh**, không `Path2D`.
 
 ## May use
 `shared`
@@ -15,7 +15,9 @@
 - Đọc `state`.
 
 ## Nhận từ `app/app.js`
-`hexToRgb` (15), `rgbToHex` (20), `rgbToHsl` (21), `hslToRgb` (36), `hslToHex` (50), `hexToHsl` (51), `selectionBounds` (479), `maskSegments` (498), `pathFromSegments` (515), `pointInSelection` (621), `translateSelection` (628), `maskFromRect` (635), `maskFromPolygon` (643), `shapeGeometry` (2299), `bezierPoints` (2965).
+`hexToRgb`, `rgbToHex`, `rgbToHsl`, `hslToRgb`, `hslToHex`, `hexToHsl`; `shapeGeometry`, `previewGeometry`, `bezierPoints`; `maskCreate`, `maskAll`, `maskFromRect`, `maskBounds`, `maskPick`, `maskMerge`, `maskInvert`, `maskShiftInt`; `maskSegments`, `segmentsToCommands`.
+
+`pointInSelection`, `translateSelection`, `maskFromRect`/`maskFromPolygon` (adapter canvas) vẫn nằm ở `app/app.js` — P1-4 mới xong phần `core`, phần nối dây còn lại.
 
 ## Cổng công khai
 `core/index.js`

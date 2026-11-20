@@ -3,7 +3,7 @@ import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
 import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas } from './src/pixel/index.js';
-import { selection } from './src/model/index.js';
+import { selection, state } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
 
 (() => {
@@ -49,22 +49,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     '#FF8A5B', '#FFC24B', '#9BD46A', '#3E9D8B', '#2F6FED', '#7B5CFA', '#D9478A', '#8C3B1E',
   ];
 
-  const state = {
-    projects: [], nott: null,
-    doc: null, active: 0,
-    tool: 'brush', color: '#16130E', bgColor: '#FDFAF3', opacity: 1, size: 18,
-    hardness: 0.9, wandTol: 32, gradType: 'linear',
-    textSize: 96, font: 'serif', shapeFill: false,
-    view: { zoom: 1, x: 32, y: 32 }, fitMode: true,
-    undo: [], redo: [],
-    dirty: false, saving: false, saveTimer: 0,
-    space: false, panning: null, draw: null, textAt: null,
-    guides: false, guidesX: [], guidesY: [], guideDrag: null,
-    selPreview: null, marquee: null,
-    move: null, gradient: null,
-    clipboard: null, adjust: null,
-    antsPhase: 0,
-  };
+  /* state đã chuyển sang `model/store.js` (P2-1); giữ facade `state.` để
+     giai đoạn 2 thay dần từng vùng đọc. */
   let selView = { active: false, bbox: null, data: null, rev: 0 };
   Object.defineProperty(state, 'sel', { get: () => selView, enumerable: true });
   selection.configure({ getDocSize: () => (state.doc ? { w: state.doc.w, h: state.doc.h } : null) });
