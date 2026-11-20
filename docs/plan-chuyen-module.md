@@ -22,11 +22,33 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 |---|---|---|
 | 0 — khung | ✅ xong | `03b3e72`, `d115640` |
 | 1 — platform / shared / core | ✅ xong | `e25522a`, `9218942`, `8fd6eab`, `969a5b5` |
-| 2 — model/store | chưa bắt đầu | — |
-| 3 — pixel / render | chưa bắt đầu | — |
+| 2 — model/store | 🔄 đang làm C4 | — |
+| 3 — pixel / render | 🔄 C3 xong (adapter), chưa nối | `300f04b`, `cfb8e8d` |
 | 4 — tools + bus | chưa bắt đầu | — |
 | 5 — ui / shell | chưa bắt đầu | — |
 | 6 — khoá lại | chưa bắt đầu | — |
+
+### Tiến độ đổi biểu diễn mask (C0–C8, hợp đồng `docs/contracts/mask.md`)
+
+| Bước | Trạng thái | Commit | Ghi chú |
+|---|---|---|---|
+| C0 — baseline | ✅ | `547d48f` | 6 số trên 1080×1350, dpr 1.25, zoom 31,5% |
+| C1 — `core/mask.js`, `core/path.js` | ✅ | `7b0c2ff` | fixture 3 ca trùng từng số; Porter-Duff 192/64/64 |
+| C2 — `platform/path2d.js` | ✅ | `588ea16` | stroke tam giác: hash trùng `Path2D` gốc |
+| C3 — `pixel/mask.js` | ✅ | `300f04b`, `cfb8e8d` | 8 adapter kiểm bằng browser; `maskExtract` sửa để không đọc `sel.mask` |
+| C4 — switch biểu diễn | 🔄 đang làm | — | điểm rollback chính |
+| C5 — bỏ `sel.mask` | chưa | — | phụ thuộc C4 |
+| C6 — bỏ `sel.path` | chưa | — | phụ thuộc C4 |
+
+Nghiệm thu C1–C3 trên browser thật (2026-11-20, `http://127.0.0.1:7317/`):
+
+- `pathFromCommands` stroke tam giác: hash pixel **trùng** `Path2D` dựng tay (558 px mực).
+- Pipeline `mask → maskSegments → segmentsToCommands → Path2D fill`: 19.800 px, **xor = 0** so với mask gốc; 798 đoạn → 800 lệnh.
+- `maskToCanvas` theo bbox: canvas 100×50, offset (10,20), **0 byte lệch** khi đọc lại.
+- `maskTranslate` dx=10,4/dy=5,2: bbox dịch đúng (10,20)→(20,25), 300 px biên bán trong suốt (giữ fidelity thập phân).
+- `maskFromWand` khối 5×5: bbox đúng, 0 px lọt ngoài. `maskFromLayerAlpha`: chỉ có giá trị 0/255.
+- `compositeSample` 2 lớp: đỏ trên, xanh dưới, đúng RGBA. `maskExtract` không cần `sel.mask`.
+- Console: **0 lỗi**.
 
 ### Ghi chú sau giai đoạn 1 (đọc trước khi làm giai đoạn 2–3)
 
