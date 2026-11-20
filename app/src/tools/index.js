@@ -26,3 +26,4 @@ export function notify(channel, payload) {
 
 export { begin as beginMarquee, drag as dragMarquee, preview as previewMarquee, commit as commitMarquee } from './marquee.js';
 export { selectAt as wandSelectAt } from './wand.js';
+export { begin as beginBrush, drag as dragBrush, end as endBrush, widthFor as brushWidthFor } from './brush.js';

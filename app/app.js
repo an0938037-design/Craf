@@ -2,10 +2,10 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
-import { maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, paintSegment as paintStroke, stampBrush, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, pickSelection, moveLayer, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
+import { maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, pickSelection, moveLayer, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
-import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, notify } from './src/tools/index.js';
+import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, notify } from './src/tools/index.js';
 
 (() => {
   'use strict';
@@ -1222,15 +1222,13 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     };
   }
 
-  function brushWidth(p) {
-    const base = state.size;
-    if (p == null) return base;
-    return Math.max(0.6, base * (0.58 + 0.84 * p));
-  }
-
-  /* Nét cọ: phần điểm ảnh nằm ở pixel/brush.js; ở đây chỉ bơm tham số tool. */
-  function paintSegment(ctx, a, b, c, color, width, erase) {
-    paintStroke(ctx, a, b, c, { color, width, erase, opacity: state.opacity, hardness: state.hardness });
+  /* Nét cọ: máy trạng thái ở tools/brush.js, rasterize ở pixel/brush.js.
+     Ở đây chỉ gom style hiện tại của tool. */
+  function brushStyle(erase) {
+    return {
+      color: state.color, baseSize: state.size, hardness: state.hardness,
+      opacity: state.opacity, erase,
+    };
   }
 
 
@@ -1267,14 +1265,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
       layer.ctx.clip(selPath(), 'evenodd');
     }
     if (tool === 'brush' || tool === 'eraser') {
-      const ctx = layer.ctx;
-      ctx.save();
-      ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-      const w = brushWidth(pt.pressure);
-      ctx.globalAlpha = tool === 'eraser' ? 1 : state.opacity;
-      stampBrush(ctx, pt.x, pt.y, Math.max(0.5, w / 2), state.color, state.hardness, tool === 'eraser');
-      ctx.restore();
-      state.draw = { kind: 'paint', layer, last: pt, mid: pt, erase: tool === 'eraser', clipped };
+      state.draw = { ...beginBrush(layer, pt, brushStyle(tool === 'eraser')), clipped };
     } else {
       state.draw = { kind: 'shape', layer, start: pt, current: pt, shift: e.shiftKey, alt: e.altKey, clipped };
     }
@@ -1287,11 +1278,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     if (!d) return;
     const pt = toDoc(e);
     if (d.kind === 'paint') {
-      const mid = { x: (d.last.x + pt.x) / 2, y: (d.last.y + pt.y) / 2 };
-      const w = brushWidth(pt.pressure);
-      paintSegment(d.layer.ctx, d.mid, d.last, mid, state.color, w, d.erase);
-      d.mid = mid;
-      d.last = pt;
+      dragBrush(d, pt, brushStyle(d.erase));
       renderSoon();
     } else if (d.kind === 'shape') {
       d.current = pt;
@@ -1321,7 +1308,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
       else if (d.kind === 'move') dragMove(d, e, pt);
     }
     if (d.kind === 'paint') {
-      paintSegment(d.layer.ctx, d.mid, d.last, null, state.color, brushWidth(0.5), d.erase);
+      endBrush(d, brushStyle(d.erase));
     } else if (d.kind === 'shape') {
       commitShape(d);
       clearOverlay();
