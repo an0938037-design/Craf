@@ -10,6 +10,7 @@
     ["pixel", "render"],
     ["render", "pixel"]
   ],
+  "injection": "Không có section 'bus'. Instance pub/sub tạo từ shared/emitter.js (factory thuần) do shell tạo lúc boot rồi TIÊM vào tools.configure({ bus }) và ui.mount({ bus }). Không section nào import module bus.",
   "sections": {
     "platform": {
       "owns": "Cầu nối API trình duyệt: query DOM, devicePixelRatio, loadImage, clipboard, File/Blob.",
@@ -43,12 +44,12 @@
     },
     "tools": {
       "owns": "Máy trạng thái con trỏ: brush, marquee, wand, move, gradient, shape, text, fill, picker, pan; registry tool + mặc định size/opacity.",
-      "mayUse": ["model", "core", "pixel", "platform", "shared", "bus"],
+      "mayUse": ["model", "core", "pixel", "platform", "shared"],
       "mustNot": ["ui (cấm tuyệt đối)", "tự vẽ chrome ngoài overlay sân khấu"]
     },
     "ui": {
       "owns": "Panel và chrome: start view, layers, inspector (color/adjust), menubar, modal, drawer, toast.",
-      "mayUse": ["model (chỉ đọc)", "core", "shared", "platform", "bus"],
+      "mayUse": ["model (chỉ đọc)", "core", "shared", "platform"],
       "mustNot": ["tools (cấm tuyệt đối)", "toán điểm ảnh", "mutate doc trực tiếp (phải dispatch command)"]
     },
     "shell": {
