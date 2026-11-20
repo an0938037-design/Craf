@@ -13,3 +13,4 @@ export { sheetSize, activeLayer, uniqueProjectName, newDocData, activate } from 
 export { layerMeta } from './layers.js';
 export { LIMITS as HISTORY_LIMITS, pushDoc, pushLayer, canUndo, canRedo, clear as clearHistory } from './history.js';
 export { DEFAULT_BG, EMPTY_LAYER_NAME, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './serialize.js';
+export { PRESETS, TEMPLATES, CRAF_SWATCHES } from './presets.js';
