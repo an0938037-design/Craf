@@ -1,13 +1,15 @@
 # `shell/` — composition root
 
 ## Owns
-- `boot.js` — composition root: `bind`, `boot`, configure mọi section, drawing engine + pointer/pan orchestration, doc lifecycle & geometry, template seed, `sendToNott`.
+- `boot.js` — composition root: `bind`, `boot`, configure mọi section, drawing engine + pointer/pan orchestration, `makeCanvas` (dùng bởi renderAdjustPreview), `sendToNott`.
+- `documents.js` — lifecycle doc: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, `seedPoster`, `seedMonogram`, `seedBands`, `previewDoc`, `applySizeModal`. Nhận deps: `syncSelView`, `clearSelection`, `updateToolUI`. (P5-9)
+- `geometry.js` — hình học bản vẽ: `updateDocMeta`, `afterGeometryChange`, `resizeImage`, `resizeCanvas`, `cropToSelection`, `flipDoc`, `rotateDoc`, `applyLayerTransform`. Nhận deps: `clearSelection`, `finishAdjust`, `pushDocHistory`, `pushLayerHistory`, `render`, `updateLayerThumb`. (P5-9)
 - `keymap.js` — `createKeyHandler`/`bindKeymap` (Escape, Ctrl+Z/Y/S/E/G/A/D/C/X/V/J/T/M, Delete, `[`/`]`, `0`, `1`, `?`, phím tắt tool, Space pan). Hành vi được **tiêm** qua deps.
 - `commands.js` — `createCommands(deps)` → `runCommand`; menubar chỉ định tuyến tên command.
 - `storage.js` — `fetch('/api/...')` tới `craf.py`, autosave, thumbnail, xuất ảnh.
 - `index.js` — điểm vào duy nhất (`index.html` nạp file này), re-export cổng con và `import './boot.js'`.
 
-Trạng thái HEAD: `shell/` gồm các file trên (chưa có `documents.js`/`geometry.js`). P5-9 (worktree): dự kiến tách `documents.js` + `geometry.js` khỏi `boot.js` — chưa merge, không khẳng định đã có.
+P5-9 đã merge: `documents.js`/`geometry.js` nhận deps boot-local qua `configureDocuments`/`configureGeometry` gọi một lần đầu `boot()`; `documents → geometry` một chiều, không vòng với `boot.js`.
 
 ## May use
 Tất cả.
@@ -24,7 +26,9 @@ Tất cả.
 - `storage.js` — `api`, `markDirty`, `setSaveState`, `saveNow`, `compositeCanvas`, `openExport`, `exportDims`, `updateExportInfo`, `runExport`, `refresh`, `refreshNott` (P5-5).
 - `commands.js` — `runCommand` (P5-5). Nhận deps.
 - `keymap.js` — `onKey` + keyup Space (P5-6). Nhận deps.
-- `boot.js` — toàn bộ phần còn lại của `app/app.js` (P5-8): boot/bind/configure, drawing engine, pointer/pan, doc lifecycle & geometry, template seed, `sendToNott`. `app/app.js` đã xoá.
+- `documents.js` — doc lifecycle: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, seed, `previewDoc`, `applySizeModal` (P5-9).
+- `geometry.js` — resize/crop/flip/rotate + meta hiển thị: `updateDocMeta`, `afterGeometryChange`, `resizeImage`, `resizeCanvas`, `cropToSelection`, `flipDoc`, `rotateDoc`, `applyLayerTransform` (P5-9).
+- `boot.js` — toàn bộ phần còn lại của `app/app.js` (P5-8): boot/bind/configure, drawing engine, pointer/pan, template seeding helper, `sendToNott`. `app/app.js` đã xoá.
 
 ## Quy ước bus
 - Không có section/file `bus.js`: `shared/emitter.js` cung cấp factory; `boot.js` tạo **một** instance rồi tiêm vào `tools.configure({ bus })`.

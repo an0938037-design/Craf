@@ -2,22 +2,24 @@
 import { $, $$, dpr, loadImage } from '../platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from '../shared/index.js';
 import { maskAll, maskBounds, maskInvert } from '../core/index.js';
-import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from '../pixel/index.js';
-import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from '../model/index.js';
+import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from '../pixel/index.js';
+import { selection, state, activeLayer, pushDoc, pushLayer, canUndo, canRedo, docSnapshot } from '../model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from '../render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from '../tools/index.js';
 import {
   toast, configureStart, renderPresets, renderRecent, renderTemplates, paintTemplatePreviews, renderNott,
   configureLayers, renderLayers, setColor, setBgColor, swapColors, resetColors, renderPalette, setFill, hslFromUI,
   adjustDefaults, syncAdjustUI,
-  openMenu, closeMenus, bindMenubar, openPane,
+  closeMenus, bindMenubar, openPane,
   openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
   configureModals, openSizeModal, closeSizeModal, openTransformModal, closeTransformModal,
   openStrokeModal, closeStrokeModal, openDocBgPicker, previewDocBg, commitDocBg, sizeState, paintHero,
 } from '../ui/index.js';
 import { createCommands } from './commands.js';
 import { bindKeymap } from './keymap.js';
-import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './storage.js';
+import { api, markDirty, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './storage.js';
+import { createProject, openProject, createTemplate, previewDoc, goStart, applySizeModal, configureDocuments } from './documents.js';
+import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeometry } from './geometry.js';
 
 (() => {
   'use strict';
@@ -27,16 +29,6 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
      → src/shared · hex/rgb/hsl → src/core/color.js · bezierPoints → src/core/geometry.js */
 
   /* ------------------------------------------------------------------ state */
-  const PRESETS = [
-    { key: 'poster', name: 'Poster', w: 1080, h: 1350, note: 'dọc' },
-    { key: 'square', name: 'Vuông', w: 1080, h: 1080, note: '1:1' },
-    { key: 'story', name: 'Story', w: 1080, h: 1920, note: 'dọc dài' },
-    { key: 'avatar', name: 'Avatar', w: 800, h: 800, note: 'tròn' },
-  ];
-  const CRAF_SWATCHES = [
-    '#16130E', '#3A3428', '#6B6154', '#A69A85', '#D9CFB9', '#F1E9D8', '#FDFAF3', '#FF4D24',
-    '#FF8A5B', '#FFC24B', '#9BD46A', '#3E9D8B', '#2F6FED', '#7B5CFA', '#D9478A', '#8C3B1E',
-  ];
 
   /* state đã chuyển sang `model/store.js` (P2-1); giữ facade `state.` để
      giai đoạn 2 thay dần từng vùng đọc. */
@@ -77,91 +69,11 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     previewDoc,
   });
 
-  /** Dựng doc xem trước cho thẻ mẫu (không đụng doc thật). */
-  function previewDoc(key) {
-    const doc = { w: 1080, h: 1350, bg: '#FDFAF3', layers: [] };
-    if (key === 'poster') { seedPoster(doc); }
-    else if (key === 'monogram') { doc.w = 800; doc.h = 800; seedMonogram(doc); }
-    else { doc.w = 1080; doc.h = 1920; seedBands(doc); }
-    return doc;
-  }
-
   /* ------------------------------------------------------------------ document model */
   function makeCanvas(w, h) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     return c;
-  }
-
-  function createProject(name, w, h, seed) {
-    const doc = {
-      ...newDocData(uniqueProjectName(state.projects, name), w, h),
-      layers: [newLayer(w, h, 'Lớp 1')],
-    };
-    if (seed) seed(doc);
-    openDoc(doc);
-    markDirty();
-  }
-
-  function openDoc(doc) {
-    activate(doc);
-    syncSelView(null);
-    showStudio();
-    $('#projectName').value = doc.name;
-    $('#projectMeta').textContent = `${doc.w} × ${doc.h} PX`;
-    renderLayers();
-    renderPalette();
-    applyView();
-    requestAnimationFrame(() => fit());
-    clearOverlay();
-    clearSelection();
-    syncAdjustUI();
-    updateToolUI();
-    setSaveState('saved');
-    $('#btnDrawerSend').disabled = false;
-  }
-
-  async function openProject(id) {
-    try {
-      const data = await api('/library/' + encodeURIComponent(id) + '.json');
-      const doc = docFromJSON(data);
-      for (const raw of data.layers || []) {
-        const l = layerFromJSON(raw);
-        const layer = newLayer(doc.w, doc.h, l.name);
-        layer.visible = l.visible;
-        layer.opacity = l.opacity;
-        layer.blend = l.blend;
-        if (l.src) {
-          try {
-            const img = await loadImage(l.src);
-            layer.ctx.drawImage(img, 0, 0, doc.w, doc.h);
-          } catch { /* keep empty */ }
-        }
-        doc.layers.push(layer);
-      }
-      if (!doc.layers.length) doc.layers.push(newLayer(doc.w, doc.h, 'Lớp 1'));
-      openDoc(doc);
-    } catch (err) {
-      toast('Không mở được bản vẽ: ' + err.message, 'err');
-    }
-  }
-
-  async function goStart() {
-    await saveNow();
-    state.doc = null;
-    state.draw = null;
-    document.body.dataset.mode = 'start';
-    $('#viewStudio').hidden = true;
-    $('#viewStart').hidden = false;
-    closeDrawer();
-    await refresh();
-    window.scrollTo(0, 0);
-  }
-
-  function showStudio() {
-    document.body.dataset.mode = 'studio';
-    $('#viewStart').hidden = true;
-    $('#viewStudio').hidden = false;
   }
 
   /* ------------------------------------------------------------------ view / render */
@@ -745,7 +657,6 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     };
   }
 
-
   function beginDraw(e) {
     const pt = toDoc(e);
     const tool = state.tool;
@@ -1072,264 +983,7 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     setFill($('#brushOpacity'), state.opacity * 100);
   }
 
-  /* ------------------------------------------------------------------ document geometry */
-  function updateDocMeta() {
-    if (!state.doc) return;
-    $('#projectMeta').textContent = `${state.doc.w} × ${state.doc.h} PX`;
-  }
-
-  function afterGeometryChange() {
-    updateDocMeta();
-    clearSelection();
-    state.fitMode = true;
-    applyView();
-    requestAnimationFrame(() => fit());
-    renderLayers();
-    render();
-    markDirty();
-  }
-
-  function resizeImage(w, h) {
-    if (!state.doc) return;
-    finishAdjust();
-    pushDocHistory();
-    const doc = state.doc;
-    for (const l of doc.layers) {
-      const old = l.canvas;
-      replaceLayerImage(l, w, h);
-      l.ctx.drawImage(old, 0, 0, w, h);
-    }
-    doc.w = w; doc.h = h;
-    afterGeometryChange();
-    toast('Đã đổi kích thước ảnh · ' + w + ' × ' + h, 'ok', 2000);
-  }
-
-  function resizeCanvas(w, h, anchor) {
-    if (!state.doc) return;
-    finishAdjust();
-    pushDocHistory();
-    const doc = state.doc;
-    const oldW = doc.w, oldH = doc.h;
-    const ax = anchor.includes('left') ? 0 : anchor.includes('right') ? 1 : 0.5;
-    const ay = anchor.includes('top') ? 0 : anchor.includes('bottom') ? 1 : 0.5;
-    const dx = Math.round((w - oldW) * ax);
-    const dy = Math.round((h - oldH) * ay);
-    for (const l of doc.layers) {
-      const old = l.canvas;
-      replaceLayerImage(l, w, h);
-      l.ctx.drawImage(old, dx, dy);
-    }
-    doc.w = w; doc.h = h;
-    afterGeometryChange();
-    toast('Đã đổi canvas · ' + w + ' × ' + h, 'ok', 2000);
-  }
-
-  function cropToSelection() {
-    if (!state.doc) return;
-    if (!state.sel.active || !state.sel.bbox) { toast('Hãy tạo vùng chọn trước', 'warn'); return; }
-    finishAdjust();
-    pushDocHistory();
-    const b = state.sel.bbox;
-    const doc = state.doc;
-    for (const l of doc.layers) {
-      const c = cropCanvas(l.canvas, b);
-      l.canvas = c;
-      l.ctx = c.getContext('2d');
-    }
-    doc.w = b.w; doc.h = b.h;
-    afterGeometryChange();
-    toast('Đã cắt theo vùng chọn · ' + b.w + ' × ' + b.h, 'ok', 2000);
-  }
-
-  function flipDoc(horizontal) {
-    if (!state.doc) return;
-    finishAdjust();
-    pushDocHistory();
-    const doc = state.doc;
-    const { w, h } = doc;
-    for (const l of doc.layers) {
-      const old = l.canvas;
-      replaceLayerImage(l, w, h);
-      l.ctx.save();
-      if (horizontal) { l.ctx.translate(w, 0); l.ctx.scale(-1, 1); }
-      else { l.ctx.translate(0, h); l.ctx.scale(1, -1); }
-      l.ctx.drawImage(old, 0, 0);
-      l.ctx.restore();
-    }
-    afterGeometryChange();
-    toast(horizontal ? 'Đã lật ngang' : 'Đã lật dọc', 'ok', 1600);
-  }
-
-  function rotateDoc(dir) {
-    if (!state.doc) return;
-    finishAdjust();
-    pushDocHistory();
-    const doc = state.doc;
-    const oldW = doc.w, oldH = doc.h;
-    for (const l of doc.layers) {
-      const old = l.canvas;
-      replaceLayerImage(l, oldH, oldW);
-      l.ctx.save();
-      if (dir > 0) {
-        l.ctx.translate(oldH, 0);
-        l.ctx.rotate(Math.PI / 2);
-      } else {
-        l.ctx.translate(0, oldW);
-        l.ctx.rotate(-Math.PI / 2);
-      }
-      l.ctx.drawImage(old, 0, 0);
-      l.ctx.restore();
-    }
-    doc.w = oldH; doc.h = oldW;
-    afterGeometryChange();
-    toast(dir > 0 ? 'Đã xoay 90° phải' : 'Đã xoay 90° trái', 'ok', 1600);
-  }
-
-  /* open/close size + transform → ui/modals.js; apply* ở lại vì cần pixel. */
-
-  function applyLayerTransform() {
-    const layer = activeLayer();
-    if (!layer) { closeTransformModal(); return; }
-    const sx = clamp(Math.abs(parseFloat($('#tfScaleX').value) || 100), 1, 1000) / 100;
-    const sy = clamp(Math.abs(parseFloat($('#tfScaleY').value) || 100), 1, 1000) / 100;
-    const angle = clamp(parseFloat($('#tfAngle').value) || 0, -3600, 3600);
-    const flipH = $('#tfFlipH').checked;
-    const flipV = $('#tfFlipV').checked;
-    closeTransformModal();
-    if (Math.abs(sx - 1) < 0.0001 && Math.abs(sy - 1) < 0.0001 && !angle && !flipH && !flipV) {
-      toast('Chưa có thay đổi nào', 'warn', 1400);
-      return;
-    }
-    pushLayerHistory();
-    const { w, h } = state.doc;
-    const old = copyCanvas(layer.canvas);
-    const ctx = layer.ctx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    if (angle) ctx.rotate((angle * Math.PI) / 180);
-    ctx.scale(sx * (flipH ? -1 : 1), sy * (flipV ? -1 : 1));
-    ctx.drawImage(old, -w / 2, -h / 2);
-    ctx.restore();
-    render();
-    updateLayerThumb();
-    markDirty();
-    toast(`Đã biến đổi lớp · ${Math.round(sx * 100)}% × ${Math.round(sy * 100)}%${angle ? ' · ' + angle + '°' : ''}`, 'ok', 1800);
-  }
-
-  function applySizeModal() {
-    const w = clamp(parseInt($('#sizeW').value, 10) || 1080, 16, 6000);
-    const h = clamp(parseInt($('#sizeH').value, 10) || 1350, 16, 6000);
-    closeSizeModal();
-    const { mode } = sizeState();
-    if (mode === 'new') {
-      saveNow();
-      createProject(`Bản vẽ ${w}×${h}`, w, h);
-    } else if (mode === 'image') {
-      resizeImage(w, h);
-    } else if (mode === 'canvas') {
-      resizeCanvas(w, h, $('#sizeAnchor').value);
-    }
-  }
-
-
-  /* ------------------------------------------------------------------ templates */
-  function createTemplate(key) {
-    if (key === 'poster') {
-      createProject('Poster mực', 1080, 1350, seedPoster);
-    } else if (key === 'monogram') {
-      createProject('Monogram', 800, 800, seedMonogram);
-    } else {
-      createProject('Dải màu', 1080, 1920, seedBands);
-    }
-  }
-
-  function seedPoster(doc) {
-    doc.bg = '#F6F1E5';
-    const art = newLayer(doc.w, doc.h, 'Mực');
-    const ctx = art.ctx;
-    ctx.fillStyle = '#FF4D24';
-    ctx.beginPath(); ctx.arc(790, 455, 250, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(22,19,14,.85)';
-    ctx.lineWidth = 26; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(110, 880);
-    ctx.bezierCurveTo(360, 700, 700, 1010, 990, 760);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(22,19,14,.25)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(96, 1180); ctx.lineTo(984, 1180); ctx.stroke();
-    const type = newLayer(doc.w, doc.h, 'Chữ');
-    const t = type.ctx;
-    t.fillStyle = '#16130E';
-    t.font = '500 150px "Fraunces", Georgia, serif';
-    t.fillText('ý tưởng', 96, 640);
-    t.fillStyle = '#FF4D24';
-    t.font = 'italic 500 150px "Fraunces", Georgia, serif';
-    t.fillText('thành hình.', 96, 790);
-    t.fillStyle = 'rgba(22,19,14,.6)';
-    t.font = '400 22px "Geist Mono", monospace';
-    t.fillText('CRAF — POSTER 01', 96, 1248);
-    t.fillText('1080 × 1350', 790, 1248);
-    doc.layers = [art, type];
-    doc.active = 1;
-  }
-
-  function seedMonogram(doc) {
-    doc.bg = '#141210';
-    const ring = newLayer(doc.w, doc.h, 'Vòng');
-    ring.ctx.strokeStyle = '#F6F1E5';
-    ring.ctx.lineWidth = 3;
-    ring.ctx.beginPath(); ring.ctx.arc(400, 400, 300, 0, Math.PI * 2); ring.ctx.stroke();
-    const type = newLayer(doc.w, doc.h, 'Chữ');
-    const t = type.ctx;
-    t.fillStyle = '#F6F1E5';
-    t.font = '500 430px "Fraunces", Georgia, serif';
-    t.textAlign = 'center';
-    t.textBaseline = 'middle';
-    t.fillText('C', 400, 386);
-    t.fillStyle = '#FF4D24';
-    t.beginPath(); t.arc(400, 642, 9, 0, Math.PI * 2); t.fill();
-    t.fillStyle = 'rgba(246,241,229,.55)';
-    t.font = '400 19px "Geist Mono", monospace';
-    t.textAlign = 'left';
-    t.textBaseline = 'alphabetic';
-    t.fillText('CRAF / MONOGRAM', 96, 724);
-    doc.layers = [ring, type];
-    doc.active = 1;
-  }
-
-  function seedBands(doc) {
-    doc.bg = '#F6F1E5';
-    const bands = newLayer(doc.w, doc.h, 'Dải');
-    const b = bands.ctx;
-    b.fillStyle = '#FF4D24'; b.fillRect(0, 0, 360, 1920);
-    b.fillStyle = '#16130E'; b.fillRect(360, 0, 360, 1920);
-    b.fillStyle = '#F6F1E5';
-    b.beginPath(); b.arc(540, 520, 148, 0, Math.PI * 2); b.fill();
-    b.fillStyle = '#FF4D24';
-    b.beginPath(); b.arc(720, 1420, 62, 0, Math.PI * 2); b.fill();
-    const type = newLayer(doc.w, doc.h, 'Chữ');
-    const t = type.ctx;
-    t.save();
-    t.translate(180, 1100);
-    t.rotate(-Math.PI / 2);
-    t.fillStyle = '#F6F1E5';
-    t.font = '400 54px "Geist Mono", monospace';
-    t.fillText('STORY — 01', 0, 0);
-    t.restore();
-    t.fillStyle = '#16130E';
-    t.font = '500 118px "Fraunces", Georgia, serif';
-    t.fillText('đổi', 420, 980);
-    t.fillText('màu', 420, 1098);
-    t.fillStyle = 'rgba(22,19,14,.55)';
-    t.font = '400 20px "Geist Mono", monospace';
-    t.fillText('CRAF / 1080 × 1920', 420, 1800);
-    doc.layers = [bands, type];
-    doc.active = 1;
-  }
+  /* open/close size + transform → ui/modals.js; apply* đã chuyển sang geometry/documents. */
 
   /* Hero poster → ui/hero.js. */
 
@@ -1471,7 +1125,6 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
       }
     });
   }
-
 
   /* ------------------------------------------------------------------ bootstrap / bind */
   function bind() {
@@ -1710,6 +1363,10 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
   }
 
   function boot() {
+    /* Tiêm hàm boot-local cho documents/geometry — 1 lần, trước khi dùng. */
+    configureDocuments({ syncSelView, clearSelection, updateToolUI });
+    configureGeometry({ clearSelection, finishAdjust, pushDocHistory, pushLayerHistory, render, updateLayerThumb });
+
     document.body.dataset.mode = 'start';
     bind();
     renderPresets();

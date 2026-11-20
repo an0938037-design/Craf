@@ -1,0 +1,215 @@
+/**
+ * `shell/documents.js` — lifecycle doc: tạo/mở project, mở bản vẽ đã lưu, đổi khổ
+ * giấy (applySizeModal), seed mẫu, preview thẻ mẫu. Tách từ `shell/boot.js` (P5-9).
+ *
+ * Hàm boot-local của `boot.js` dùng ở đây được tiêm 1 lần qua
+ * `configureDocuments({...})` trong `boot()` trước khi gọi: `syncSelView`,
+ * `clearSelection`, `updateToolUI`.
+ */
+import { $, loadImage } from '../platform/index.js';
+import { clamp } from '../shared/index.js';
+import { activate, docFromJSON, layerFromJSON, newDocData, state, uniqueProjectName } from '../model/index.js';
+import { createLayer as newLayer } from '../pixel/index.js';
+import { applyView, clearOverlay, fit } from '../render/index.js';
+import { closeDrawer, closeSizeModal, renderLayers, renderPalette, sizeState, syncAdjustUI, toast } from '../ui/index.js';
+import { api, markDirty, refresh, saveNow, setSaveState } from './storage.js';
+import { resizeImage, resizeCanvas } from './geometry.js';
+
+/* ------------------------------------------------------------------ deps */
+let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {} };
+export function configureDocuments(d) { Object.assign(deps, d); }
+
+/* ------------------------------------------------------------------ start screen */
+/* Màn hình bắt đầu đã sang `ui/start.js`; ở đây chỉ tiêm hành động. */
+
+/** Dựng doc xem trước cho thẻ mẫu (không đụng doc thật). */
+export function previewDoc(key) {
+  const doc = { w: 1080, h: 1350, bg: '#FDFAF3', layers: [] };
+  if (key === 'poster') { seedPoster(doc); }
+  else if (key === 'monogram') { doc.w = 800; doc.h = 800; seedMonogram(doc); }
+  else { doc.w = 1080; doc.h = 1920; seedBands(doc); }
+  return doc;
+}
+
+/* ------------------------------------------------------------------ doc lifecycle */
+export function createProject(name, w, h, seed) {
+  const doc = {
+    ...newDocData(uniqueProjectName(state.projects, name), w, h),
+    layers: [newLayer(w, h, 'Lớp 1')],
+  };
+  if (seed) seed(doc);
+  openDoc(doc);
+  markDirty();
+}
+
+export function openDoc(doc) {
+  activate(doc);
+  deps.syncSelView(null);
+  showStudio();
+  $('#projectName').value = doc.name;
+  $('#projectMeta').textContent = `${doc.w} × ${doc.h} PX`;
+  renderLayers();
+  renderPalette();
+  applyView();
+  requestAnimationFrame(() => fit());
+  clearOverlay();
+  deps.clearSelection();
+  syncAdjustUI();
+  deps.updateToolUI();
+  setSaveState('saved');
+  $('#btnDrawerSend').disabled = false;
+}
+
+export async function openProject(id) {
+  try {
+    const data = await api('/library/' + encodeURIComponent(id) + '.json');
+    const doc = docFromJSON(data);
+    for (const raw of data.layers || []) {
+      const l = layerFromJSON(raw);
+      const layer = newLayer(doc.w, doc.h, l.name);
+      layer.visible = l.visible;
+      layer.opacity = l.opacity;
+      layer.blend = l.blend;
+      if (l.src) {
+        try {
+          const img = await loadImage(l.src);
+          layer.ctx.drawImage(img, 0, 0, doc.w, doc.h);
+        } catch { /* keep empty */ }
+      }
+      doc.layers.push(layer);
+    }
+    if (!doc.layers.length) doc.layers.push(newLayer(doc.w, doc.h, 'Lớp 1'));
+    openDoc(doc);
+  } catch (err) {
+    toast('Không mở được bản vẽ: ' + err.message, 'err');
+  }
+}
+
+export async function goStart() {
+  await saveNow();
+  state.doc = null;
+  state.draw = null;
+  document.body.dataset.mode = 'start';
+  $('#viewStudio').hidden = true;
+  $('#viewStart').hidden = false;
+  closeDrawer();
+  await refresh();
+  window.scrollTo(0, 0);
+}
+
+export function showStudio() {
+  document.body.dataset.mode = 'studio';
+  $('#viewStart').hidden = true;
+  $('#viewStudio').hidden = false;
+}
+
+/* ------------------------------------------------------------------ size modal */
+export function applySizeModal() {
+  const w = clamp(parseInt($('#sizeW').value, 10) || 1080, 16, 6000);
+  const h = clamp(parseInt($('#sizeH').value, 10) || 1350, 16, 6000);
+  closeSizeModal();
+  const { mode } = sizeState();
+  if (mode === 'new') {
+    saveNow();
+    createProject(`Bản vẽ ${w}×${h}`, w, h);
+  } else if (mode === 'image') {
+    resizeImage(w, h);
+  } else if (mode === 'canvas') {
+    resizeCanvas(w, h, $('#sizeAnchor').value);
+  }
+}
+
+/* ------------------------------------------------------------------ templates */
+export function createTemplate(key) {
+  if (key === 'poster') {
+    createProject('Poster mực', 1080, 1350, seedPoster);
+  } else if (key === 'monogram') {
+    createProject('Monogram', 800, 800, seedMonogram);
+  } else {
+    createProject('Dải màu', 1080, 1920, seedBands);
+  }
+}
+
+export function seedPoster(doc) {
+  doc.bg = '#F6F1E5';
+  const art = newLayer(doc.w, doc.h, 'Mực');
+  const ctx = art.ctx;
+  ctx.fillStyle = '#FF4D24';
+  ctx.beginPath(); ctx.arc(790, 455, 250, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(22,19,14,.85)';
+  ctx.lineWidth = 26; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(110, 880);
+  ctx.bezierCurveTo(360, 700, 700, 1010, 990, 760);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(22,19,14,.25)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(96, 1180); ctx.lineTo(984, 1180); ctx.stroke();
+  const type = newLayer(doc.w, doc.h, 'Chữ');
+  const t = type.ctx;
+  t.fillStyle = '#16130E';
+  t.font = '500 150px "Fraunces", Georgia, serif';
+  t.fillText('ý tưởng', 96, 640);
+  t.fillStyle = '#FF4D24';
+  t.font = 'italic 500 150px "Fraunces", Georgia, serif';
+  t.fillText('thành hình.', 96, 790);
+  t.fillStyle = 'rgba(22,19,14,.6)';
+  t.font = '400 22px "Geist Mono", monospace';
+  t.fillText('CRAF — POSTER 01', 96, 1248);
+  t.fillText('1080 × 1350', 790, 1248);
+  doc.layers = [art, type];
+  doc.active = 1;
+}
+
+export function seedMonogram(doc) {
+  doc.bg = '#141210';
+  const ring = newLayer(doc.w, doc.h, 'Vòng');
+  ring.ctx.strokeStyle = '#F6F1E5';
+  ring.ctx.lineWidth = 3;
+  ring.ctx.beginPath(); ring.ctx.arc(400, 400, 300, 0, Math.PI * 2); ring.ctx.stroke();
+  const type = newLayer(doc.w, doc.h, 'Chữ');
+  const t = type.ctx;
+  t.fillStyle = '#F6F1E5';
+  t.font = '500 430px "Fraunces", Georgia, serif';
+  t.textAlign = 'center';
+  t.textBaseline = 'middle';
+  t.fillText('C', 400, 386);
+  t.fillStyle = '#FF4D24';
+  t.beginPath(); t.arc(400, 642, 9, 0, Math.PI * 2); t.fill();
+  t.fillStyle = 'rgba(246,241,229,.55)';
+  t.font = '400 19px "Geist Mono", monospace';
+  t.textAlign = 'left';
+  t.textBaseline = 'alphabetic';
+  t.fillText('CRAF / MONOGRAM', 96, 724);
+  doc.layers = [ring, type];
+  doc.active = 1;
+}
+
+export function seedBands(doc) {
+  doc.bg = '#F6F1E5';
+  const bands = newLayer(doc.w, doc.h, 'Dải');
+  const b = bands.ctx;
+  b.fillStyle = '#FF4D24'; b.fillRect(0, 0, 360, 1920);
+  b.fillStyle = '#16130E'; b.fillRect(360, 0, 360, 1920);
+  b.fillStyle = '#F6F1E5';
+  b.beginPath(); b.arc(540, 520, 148, 0, Math.PI * 2); b.fill();
+  b.fillStyle = '#FF4D24';
+  b.beginPath(); b.arc(720, 1420, 62, 0, Math.PI * 2); b.fill();
+  const type = newLayer(doc.w, doc.h, 'Chữ');
+  const t = type.ctx;
+  t.save();
+  t.translate(180, 1100);
+  t.rotate(-Math.PI / 2);
+  t.fillStyle = '#F6F1E5';
+  t.font = '400 54px "Geist Mono", monospace';
+  t.fillText('STORY — 01', 0, 0);
+  t.restore();
+  t.fillStyle = '#16130E';
+  t.font = '500 118px "Fraunces", Georgia, serif';
+  t.fillText('đổi', 420, 980);
+  t.fillText('màu', 420, 1098);
+  t.fillStyle = 'rgba(22,19,14,.55)';
+  t.font = '400 20px "Geist Mono", monospace';
+  t.fillText('CRAF / 1080 × 1920', 420, 1800);
+  doc.layers = [bands, type];
+  doc.active = 1;
+}
