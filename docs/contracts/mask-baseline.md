@@ -77,6 +77,25 @@ Kiểm đúng đắn cùng phiên:
 | A11 (undo) | có history rồi undo ⇒ `selection.isActive()` **true → false** |
 | Copy/paste | `Ctrl+C` → `Ctrl+V` tạo lớp mới (1 → 2), console **0 lỗi** |
 
+## Đối chứng pixel C5/C6 — hash khung vẽ
+
+C5 (`copySelection`/`beginMove`/`floodFill` bỏ `sel.mask`) và C6 (`selectionPath` cache theo `rev`) **không được đổi một byte pixel nào**. Cách kiểm: chạy một chuỗi thao tác cố định rồi băm `getImageData` của `#paper` (FNV-1a, bước 7 byte).
+
+Chuỗi: brush 5 điểm → marquee 220,200→360,320 → `Ctrl+C` → `Ctrl+V` → `Ctrl+Z` → marquee lại → `Ctrl+X` → `Ctrl+Z` → marquee lại → move thập phân (→ 327,4 / 291,2).
+
+| Mốc | Hash | Ghi chú |
+|---|---|---|
+| `afterBrush` | `e2939a19` | |
+| `afterPaste` | `54da7c8f` | |
+| `afterUndoPaste` | `2bbdc29e` | |
+| `afterCut` | `a54f3dd5` | |
+| `afterUndoCut` | `2bbdc29e` | |
+| `afterMoveFrac` | `dbb7001` | |
+
+Đối chứng chéo: chuỗi này chạy trên `HEAD` (sau C6) và trên worktree `0c0b95f` (trước C5) cho **cùng 6 hash**, ba lượt reload liên tiếp trên `HEAD` cũng cho cùng kết quả. Một bản ghi `afterPaste = e5120ec4` chụp trước C5 là **artifact của lần chụp đầu** (trạng thái clipboard còn sót), không phải khác biệt do refactor; đã loại bỏ.
+
+Cache C6 kiểm trong trình duyệt: `selectionPath(sel)` gọi 100 lần trả **cùng một object** (`===`), vẫn cùng object sau khi ants chạy vài frame (`rev` không đổi), trả object mới khi `rev` tăng, và trả `null` với đầu vào `null`.
+
 ## Cách chạy lại
 
 1. Mở `http://127.0.0.1:7317/`, tạo doc Poster 1080×1350.
