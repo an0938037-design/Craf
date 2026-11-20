@@ -10,6 +10,11 @@
 - `adjust.js` — `adjustFilter`, `applyLevels`, `convolveCanvas`, `filterCanvas`, `paintClippedOver` (P3-4).
 - `sample.js` — `sampleHex(canvas, x, y)` cho công cụ lấy màu (P3-5).
 - `encode.js` — `pngDataURL`, `jpegDataURL`: một chỗ duy nhất quyết định định dạng ảnh lưu/thumbnail (P3-5).
+- `brush.js` — `stampBrush`, `paintSegment` (P4-2): con dấu cọ mềm + nối đoạn.
+- `gradient.js` — `gradientPaint(ctx, d, o)` (P4-3): tô tuyến tính/toả tròn, có `clipPath`.
+- `shape.js` — `shapeGeometry(d, tool)`, `shapePath`, `paintShape(ctx, d, o)` (P4-3).
+- `move.js` — `pickSelection(layer, sel, doc)`, `moveLayer(layer, d, o)` (P4-4).
+- `text.js` — `drawText(ctx, text, pt, o)` (P4-6).
 
 Chưa chuyển: phần rasterize clipboard (`pasteClipboard` còn 1 `drawImage` trong `app.js`).
 

@@ -2,10 +2,10 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
-import { maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, pickSelection, moveLayer, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
+import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
-import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, notify } from './src/tools/index.js';
+import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from './src/tools/index.js';
 
 (() => {
   'use strict';
@@ -1214,12 +1214,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
 
   /* ------------------------------------------------------------------ drawing engine */
   function toDoc(e) {
-    const r = board.getBoundingClientRect();
-    return {
-      x: (e.clientX - r.left) * state.doc.w / r.width,
-      y: (e.clientY - r.top) * state.doc.h / r.height,
-      pressure: e.pointerType === 'pen' ? clamp(e.pressure || 0.5, 0.08, 1) : 0.5,
-    };
+    return docPoint(e, board, state.doc);
   }
 
   /* Nét cọ: máy trạng thái ở tools/brush.js, rasterize ở pixel/brush.js.
@@ -1245,8 +1240,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
       return;
     }
     if (tool === 'move') { beginMove(e); return; }
-    if (tool === 'gradient') { beginGradient(e); return; }
-    if (tool === 'marquee' || tool === 'lasso') {
+    if (tool === 'gradient') { beginGradient(e); return; }    if (tool === 'marquee' || tool === 'lasso') {
       const d = beginMarquee(tool, pt, { add: e.shiftKey, subtract: e.altKey });
       state.draw = d;
       try { overlay.setPointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -1267,7 +1261,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     if (tool === 'brush' || tool === 'eraser') {
       state.draw = { ...beginBrush(layer, pt, brushStyle(tool === 'eraser')), clipped };
     } else {
-      state.draw = { kind: 'shape', layer, start: pt, current: pt, shift: e.shiftKey, alt: e.altKey, clipped };
+      state.draw = { ...shapeBegin(layer, pt, { shift: e.shiftKey, alt: e.altKey }), clipped };
     }
     try { overlay.setPointerCapture(e.pointerId); } catch { /* synthetic or touch cancel */ }
     renderSoon();
@@ -1281,9 +1275,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
       dragBrush(d, pt, brushStyle(d.erase));
       renderSoon();
     } else if (d.kind === 'shape') {
-      d.current = pt;
-      d.shift = e.shiftKey;
-      d.alt = e.altKey;
+      dragShape(d, pt, { shift: e.shiftKey, alt: e.altKey });
       previewShape(d);
     } else if (d.kind === 'marquee') {
       dragMarquee(d, pt, e.shiftKey);
@@ -1292,8 +1284,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     } else if (d.kind === 'move') {
       dragMove(d, e, pt);
     } else if (d.kind === 'gradient') {
-      d.current = pt;
-      d.reverse = e.shiftKey;
+      dragGradient(d, pt, e.shiftKey);
       previewGradient(d);
     }
   }
@@ -1337,25 +1328,15 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     if (!layer) return;
     const pt = toDoc(e);
     const useSel = state.sel.active && pointInSelection(pt.x, pt.y);
-    const picked = useSel ? pickSelection(layer, state.sel, state.doc) : null;
-    state.draw = {
-      kind: 'move', layer, src: copyCanvas(layer.canvas), sel: picked, start: pt,
-      dx: 0, dy: 0, moved: false, pushed: false, useSel,
-    };
+    state.draw = moveBegin(layer, pt, { useSel, sel: state.sel, doc: state.doc });
     try { overlay.setPointerCapture(e.pointerId); } catch { /* ignore */ }
   }
 
   function dragMove(d, e, pt) {
-    let dx = pt.x - d.start.x;
-    let dy = pt.y - d.start.y;
-    if (e.shiftKey) {
-      if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0;
-    }
-    if (Math.hypot(dx, dy) < 0.5) return;
-    if (!d.pushed) { pushDocHistory(); d.pushed = true; }
-    d.moved = true;
-    d.dx = dx; d.dy = dy;
-    moveLayer(d.layer, d, { w: state.doc.w, h: state.doc.h, clipPath: d.useSel ? selPath() : null });
+    const step = planMove(d, pt, e.shiftKey);
+    if (!step.moved) return;
+    if (step.firstPush) pushDocHistory();
+    applyMove(d, { w: state.doc.w, h: state.doc.h, clipPath: d.useSel ? selPath() : null });
     renderSoon();
   }
 
@@ -1371,7 +1352,7 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     const layer = activeLayer();
     if (!layer) return;
     const pt = toDoc(e);
-    state.draw = { kind: 'gradient', layer, start: pt, current: pt, reverse: e.shiftKey };
+    state.draw = gradientBegin(layer, pt, e.shiftKey);
     try { overlay.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     previewGradient(state.draw);
   }
@@ -1397,9 +1378,8 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
   }
 
   function finishGradient(d) {
-    const dist = Math.hypot(d.current.x - d.start.x, d.current.y - d.start.y);
     clearOverlay();
-    if (dist < 2) return;
+    if (!gradientHasLength(d)) return;
     pushLayerHistory();
     gradientPaint(d.layer.ctx, d);
     render();
@@ -1439,28 +1419,16 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
 
   function floodFill(pt) {
     const layer = activeLayer();
-    const { w, h } = state.doc;
-    const x = Math.floor(pt.x), y = Math.floor(pt.y);
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
-    floodFillLayer(layer.ctx, w, h, x, y, state.color, 44, state.sel.active ? state.sel.data : null);
+    fillAt(layer, state.doc, pt, { color: state.color, selData: state.sel.active ? state.sel.data : null });
   }
 
   function pickColor(e) {
-    const r = paper.getBoundingClientRect();
-    const x = Math.floor((e.clientX - r.left) * paper.width / r.width);
-    const y = Math.floor((e.clientY - r.top) * paper.height / r.height);
-    setColor(sampleHex(paper, x, y));
+    setColor(pickHex(paper, e.clientX, e.clientY));
     setTool('brush');
     toast('Đã lấy màu ' + state.color, 'ok', 1600);
   }
 
   /* text */
-  const FONTS = {
-    serif: '"Fraunces", Georgia, serif',
-    sans: '"Segoe UI Variable Text", "Segoe UI", sans-serif',
-    mono: '"Geist Mono", Consolas, monospace',
-  };
-
   function openTextEditor(e, pt) {
     const wrap = $('#textWrap');
     const input = $('#textInput');
@@ -1477,15 +1445,10 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
       if (text.trim()) {
         pushLayerHistory();
         const layer = activeLayer();
-        const size = state.textSize;
-        layer.ctx.save();
-        if (state.sel.active) layer.ctx.clip(selPath(), 'evenodd');
-        layer.ctx.fillStyle = state.color;
-        layer.ctx.font = `500 ${size}px ${FONTS[state.font]}`;
-        layer.ctx.textBaseline = 'top';
-        layer.ctx.globalAlpha = state.opacity;
-        text.split('\n').forEach((line, i) => layer.ctx.fillText(line, state.textAt.x, state.textAt.y + i * size * 1.06));
-        layer.ctx.restore();
+        writeText(layer, text, state.textAt, {
+          color: state.color, size: state.textSize, font: state.font,
+          opacity: state.opacity, clipPath: state.sel.active ? selPath() : null,
+        });
         state.draw = null;
         render(); updateLayerThumb(); markDirty();
       }
@@ -1557,41 +1520,21 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
 
   /* ------------------------------------------------------------------ tools / UI sync */
   function setTool(tool) {
-    state.tool = tool;
+    setToolState(tool);
     updateToolUI();
     if (tool !== 'brush' && tool !== 'eraser') $('#brushRing').hidden = true;
   }
 
   function updateToolUI() {
     $$('.tool[data-tool]').forEach((el) => el.classList.toggle('active', el.dataset.tool === state.tool));
-    const showFill = ['rect', 'ellipse'].includes(state.tool);
-    $('#shapeFillBlock').hidden = !showFill;
-    $('#textBlock').hidden = state.tool !== 'text';
-    $('#wandBlock').hidden = state.tool !== 'wand';
-    $('#gradBlock').hidden = state.tool !== 'gradient';
-    $('#hardnessBlock').hidden = !['brush', 'eraser'].includes(state.tool);
-    const cursors = {
-      hand: 'grab', move: 'move', brush: 'none', eraser: 'none',
-      marquee: 'crosshair', lasso: 'crosshair', wand: 'crosshair', gradient: 'crosshair',
-    };
-    overlay.style.cursor = cursors[state.tool] || 'crosshair';
-    const hints = {
-      brush: 'VẼ TỰ DO · [ ] ĐỔI CỠ CỌ · SPACE KÉO BÀN',
-      eraser: 'TẨY · [ ] ĐỔI CỠ TẨY',
-      line: 'KÉO ĐỂ VẼ ĐƯỜNG · SHIFT KHOÁ 45°',
-      rect: 'KÉO ĐỂ VẼ CHỮ NHẬT · SHIFT = VUÔNG · ALT = TỪ TÂM',
-      ellipse: 'KÉO ĐỂ VẼ ELLIPSE · SHIFT = TRÒN · ALT = TỪ TÂM',
-      fill: 'BẤM VÀO MỘT VÙNG ĐỂ ĐỔ MÀU',
-      gradient: 'KÉO ĐỂ CHUYỂN MÀU TRƯỚC → SAU · SHIFT ĐẢO CHIỀU',
-      pick: 'BẤM ĐỂ HÚT MÀU TỪ BÀN VẼ',
-      text: 'BẤM ĐỂ ĐẶT CHỮ · ENTER ĐỂ XONG',
-      hand: 'KÉO ĐỂ DI CHUYỂN BÀN VẼ · LĂN CHUỘT ĐỂ ZOOM',
-      move: 'KÉO ĐỂ DI CHUYỂN LỚP HOẶC VÙNG CHỌN · SHIFT KHOÁ TRỤC',
-      marquee: 'KÉO VÙNG CHỌN · SHIFT THÊM · ALT BỚT · BẤM SUÔNG ĐỂ BỎ CHỌN',
-      lasso: 'VẼ VÒNG TỰ DO · SHIFT THÊM · ALT BỚT',
-      wand: 'BẤM ĐỂ CHỌN MẢNG MÀU TƯƠNG TỰ · SHIFT THÊM · ALT BỚT',
-    };
-    $('#stageHint').textContent = hints[state.tool] || '';
+    const panels = panelsFor(state.tool);
+    $('#shapeFillBlock').hidden = !panels.shapeFill;
+    $('#textBlock').hidden = !panels.text;
+    $('#wandBlock').hidden = !panels.wand;
+    $('#gradBlock').hidden = !panels.gradient;
+    $('#hardnessBlock').hidden = !panels.hardness;
+    overlay.style.cursor = cursorFor(state.tool);
+    $('#stageHint').textContent = hintFor(state.tool);
     if (state.doc) positionTextEditor();
   }
 

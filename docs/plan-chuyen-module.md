@@ -193,6 +193,24 @@ hàm — tách raster thuần sẽ làm ở giai đoạn 3b nếu cần.
 gỡ `ui/` khỏi app vẫn vẽ được bằng phím tắt (chứng minh tools không phụ thuộc panel).
 **Lịch:** 2.5 ngày. B chờ bus ~1 ngày → dùng viết cổng tự test cho tools.
 
+### Trạng thái giai đoạn 4
+
+| Việc | Kết quả |
+|---|---|
+| C8 (`929024f`) | `tools/marquee.js`, `tools/wand.js`, `shared/emitter.js`; bus do `app.js` tạo và **tiêm** vào `configureTools({ bus })` (không section nào import `shell`) |
+| P4-2…P4-4 | `pixel/brush.js`, `pixel/gradient.js`, `pixel/shape.js`, `pixel/move.js`: toàn bộ phép vẽ điểm ảnh của tool rời `app.js`, nhận tham số (không đọc `state`) |
+| P4-5 | `tools/brush.js`: máy trạng thái nét cọ (dấu đầu + quadratic + khép thẳng) |
+| P4-6 | `tools/{move,shape,gradient,text,fill,picker,registry}.js`: gesture + luật commit; `registry.setTool` phát `tool:changed`, `app.js` (tạm) nghe để vẽ panel |
+| `pixel/text.js` | `drawText` — rasterize chữ nhiều dòng, có `clipPath` |
+
+Đối chứng sau mỗi nhát cắt (Poster 1080×1350, hash doc space):
+- Gradient + shape: render 32 tổ hợp (3 tool × shift × alt × fill, và linear/radial × reverse × clip) — **32/32 hash trùng** bản cũ.
+- Move: chọn 141×122 rồi kéo `(+37.4, +31.2)` → `b692770c`, undo → `fffe201d` (trùng baseline P2).
+- Brush: `fffe201d` (cứng), `cfe7bfbc` (mềm), tẩy 2.205 → 1.815 px, clip vùng chọn 0 px tràn.
+- Fill/pick/toDoc: fill nền `#FF4D24` → `bf079686`, undo `7ab27801`; pick trả `#FDFAF3` rồi tự về bút; vẽ ở zoom 100% vẫn ra đúng toạ độ doc.
+
+Một khác biệt **có sẵn từ trước**, không do refactor: sau khi undo (khôi phục layer bằng PNG), nét cọ kế tiếp cho alpha coverage lệch ~1% (4.076 → 4.116 px). Đã đối chứng trên worktree `87e4e58` (trước khi tách brush) — **cùng hiện tượng**, nên ghi nhận là artifact rasterize của Chrome, không sửa trong đợt này.
+
 ## Giai đoạn 5 — `ui` + `shell` (đóng monolith)
 
 | ID | Việc | Owner | Ngày | Phụ thuộc |
