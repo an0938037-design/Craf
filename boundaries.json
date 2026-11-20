@@ -1,0 +1,60 @@
+{
+  "$comment": "Nguồn sự thật cho ranh giới module Craf. tools/check-boundaries.mjs đọc file này; docs/architecture.md chỉ diễn giải. Sửa file này TRƯỚC khi thêm/bớt section.",
+  "root": "app/src",
+  "entry": "index.js",
+  "rule": "Một section chỉ được import section có rank thấp hơn trong 'layers' (hoặc chính nó). Cặp trong 'forbidden' bị cấm tuyệt đối, kể cả khi rank cho phép.",
+  "layers": ["platform", "shared", "core", "model", "pixel", "render", "tools", "ui", "shell"],
+  "forbidden": [
+    ["tools", "ui"],
+    ["ui", "tools"],
+    ["pixel", "render"],
+    ["render", "pixel"]
+  ],
+  "sections": {
+    "platform": {
+      "owns": "Cầu nối API trình duyệt: query DOM, devicePixelRatio, loadImage, clipboard, File/Blob.",
+      "mayUse": [],
+      "mustNot": ["bất kỳ section nào khác", "từ vựng domain (doc, layer, mask, selection)"]
+    },
+    "shared": {
+      "owns": "Hàm thuần dùng chung không mang ngữ nghĩa Craf: clamp/lerp, fmt, pad, uid, esc.",
+      "mayUse": [],
+      "mustNot": ["DOM", "I/O", "từ vựng domain"]
+    },
+    "core": {
+      "owns": "Toán thuần: hình học, mask trên Uint8Array, chuyển đổi màu, dựng path dạng mảng lệnh.",
+      "mayUse": ["shared"],
+      "mustNot": ["DOM", "canvas", "Path2D", "model", "trạng thái tool"]
+    },
+    "model": {
+      "owns": "Doc/Layer, store + subscribe, bất biến dữ liệu, history stack, serialize .craf, dữ liệu preset/template.",
+      "mayUse": ["core", "shared"],
+      "mustNot": ["DOM", "phép toán điểm ảnh", "trạng thái tool", "render"]
+    },
+    "pixel": {
+      "owns": "Mọi phép toán trên điểm ảnh: levels, kernel/filter, resample, flood fill, wand, lấy màu, encode, thumbnail, rasterize stroke/fill.",
+      "mayUse": ["model", "core", "shared"],
+      "mustNot": ["ui", "render", "trạng thái tool", "viewport"]
+    },
+    "render": {
+      "owns": "Vẽ lên canvas: composite layer stack, viewport/zoom/pan, thước, ants vùng chọn, preview hình đang kéo.",
+      "mayUse": ["model", "core", "shared", "platform"],
+      "mustNot": ["mutate doc/history", "pixel filter", "panel DOM"]
+    },
+    "tools": {
+      "owns": "Máy trạng thái con trỏ: brush, marquee, wand, move, gradient, shape, text, fill, picker, pan; registry tool + mặc định size/opacity.",
+      "mayUse": ["model", "core", "pixel", "platform", "shared", "bus"],
+      "mustNot": ["ui (cấm tuyệt đối)", "tự vẽ chrome ngoài overlay sân khấu"]
+    },
+    "ui": {
+      "owns": "Panel và chrome: start view, layers, inspector (color/adjust), menubar, modal, drawer, toast.",
+      "mayUse": ["model (chỉ đọc)", "core", "shared", "platform", "bus"],
+      "mustNot": ["tools (cấm tuyệt đối)", "toán điểm ảnh", "mutate doc trực tiếp (phải dispatch command)"]
+    },
+    "shell": {
+      "owns": "Composition root: boot, keymap, bảng command + bus, cầu lưu trữ HTTP tới craf.py.",
+      "mayUse": ["tất cả"],
+      "mustNot": ["chứa quy tắc nghiệp vụ của một tool", "toán điểm ảnh"]
+    }
+  }
+}
