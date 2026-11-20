@@ -3,7 +3,7 @@ import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
 import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers } from './src/pixel/index.js';
-import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate } from './src/model/index.js';
+import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
 
 (() => {
@@ -279,15 +279,13 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   async function openProject(id) {
     try {
       const data = await api('/library/' + encodeURIComponent(id) + '.json');
-      const doc = {
-        id: data.id, name: data.name, w: data.w, h: data.h, bg: data.bg || '#FDFAF3',
-        createdAt: data.createdAt || Date.now(), layers: [], active: (data.layers || []).length - 1,
-      };
-      for (const l of data.layers || []) {
+      const doc = docFromJSON(data);
+      for (const raw of data.layers || []) {
+        const l = layerFromJSON(raw);
         const layer = newLayer(doc.w, doc.h, l.name);
-        layer.visible = l.visible !== false;
-        layer.opacity = clamp(l.opacity ?? 100, 0, 100);
-        layer.blend = l.blend || 'source-over';
+        layer.visible = l.visible;
+        layer.opacity = l.opacity;
+        layer.blend = l.blend;
         if (l.src) {
           try {
             const img = await loadImage(l.src);
@@ -1153,38 +1151,24 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
 
   /* ------------------------------------------------------------------ history */
   function snapshotDoc() {
-    return {
-      kind: 'doc',
-      w: state.doc.w, h: state.doc.h, bg: state.doc.bg,
-      layers: state.doc.layers.map((l) => ({
-        name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend,
-        src: l.canvas.toDataURL('image/png'),
-      })),
-      active: state.active,
-    };
+    return docSnapshot(state.doc, state.active, (l) => l.canvas.toDataURL('image/png'));
   }
 
   function pushDocHistory() {
     if (!state.doc) return;
-    state.undo.push(snapshotDoc());
-    if (state.undo.length > 24) state.undo.shift();
-    state.redo = [];
+    pushDoc(snapshotDoc());
     syncHistoryButtons();
   }
 
   function pushLayerHistory() {
     const l = activeLayer();
     if (!l) return;
-    state.undo.push({ kind: 'layer', id: l.id, src: l.canvas.toDataURL('image/png') });
-    if (state.undo.length > 30) state.undo.shift();
-    state.redo = [];
+    pushLayer({ kind: 'layer', id: l.id, src: l.canvas.toDataURL('image/png') });
     syncHistoryButtons();
   }
 
   function pushLayerSnapshot(layer, src) {
-    state.undo.push({ kind: 'layer', id: layer.id, src });
-    if (state.undo.length > 30) state.undo.shift();
-    state.redo = [];
+    pushLayer({ kind: 'layer', id: layer.id, src });
     syncHistoryButtons();
   }
 
@@ -1249,8 +1233,8 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   }
 
   function syncHistoryButtons() {
-    $('#btnUndo').disabled = !state.undo.length;
-    $('#btnRedo').disabled = !state.redo.length;
+    $('#btnUndo').disabled = !canUndo();
+    $('#btnRedo').disabled = !canRedo();
   }
 
   function markDirty() {
@@ -1307,15 +1291,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     state.saving = true;
     setSaveState('saving');
     const doc = state.doc;
-    const payload = {
-      id: doc.id, name: doc.name, w: doc.w, h: doc.h, bg: doc.bg,
-      createdAt: doc.createdAt,
-      layers: doc.layers.map((l) => ({
-        name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend,
-        src: l.canvas.toDataURL('image/png'),
-      })),
-      thumb: thumbData(),
-    };
+    const payload = toPayload(doc, (l) => l.canvas.toDataURL('image/png'), thumbData());
     try {
       const res = await api('/api/projects', payload);
       state.dirty = false;
