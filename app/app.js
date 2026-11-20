@@ -1,10 +1,10 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
-import { bezierPoints, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
+import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
 import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
 import { selection } from './src/model/index.js';
-import { selectionPath } from './src/render/index.js';
+import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selPreviewPath } from './src/render/index.js';
 
 (() => {
   'use strict';
@@ -74,6 +74,11 @@ import { selectionPath } from './src/render/index.js';
   const ants = $('#ants');
   const board = $('#board');
   const holder = $('#boardHolder');
+  configureOverlay({
+    ants, overlay,
+    getState: () => state,
+    getSelection: () => selection.get(),
+  });
   const area = $('#boardArea');
 
   /* ------------------------------------------------------------------ start screen */
@@ -422,12 +427,6 @@ import { selectionPath } from './src/render/index.js';
     requestAnimationFrame(() => { renderQueued = false; render(); });
   }
 
-  function clearOverlay() {
-    const ctx = overlay.getContext('2d');
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, overlay.width, overlay.height);
-  }
-
   /* ------------------------------------------------------------------ selection */
   function selPath() {
     const s = selection.get();
@@ -522,114 +521,6 @@ import { selectionPath } from './src/render/index.js';
       if (on && state.sel.bbox) st.textContent = `CHỌN ${fmt(state.sel.bbox.w)}×${fmt(state.sel.bbox.h)}`;
     }
     if (scope) scope.textContent = on ? 'trong vùng chọn' : 'toàn lớp';
-  }
-
-  /* marching ants */
-  let antsFrame = 0;
-  let antsLast = 0;
-  function requestAnts() {
-    if (antsFrame) return;
-    antsFrame = requestAnimationFrame(() => { antsFrame = 0; drawAnts(); });
-  }
-
-  function previewGeometry(m) {
-    let x0 = m.start.x, y0 = m.start.y, x1 = m.current.x, y1 = m.current.y;
-    if (m.shift) {
-      const side = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-      x1 = x0 + Math.sign(x1 - x0 || 1) * side;
-      y1 = y0 + Math.sign(y1 - y0 || 1) * side;
-    }
-    if (m.alt) {
-      x0 = m.start.x - (x1 - m.start.x);
-      y0 = m.start.y - (y1 - m.start.y);
-    }
-    return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
-  }
-
-  function selPreviewPath() {
-    const p = new Path2D();
-    const m = state.selPreview;
-    if (!m) return null;
-    if (m.type === 'rect') {
-      const g = previewGeometry(m);
-      p.rect(g.x, g.y, g.w, g.h);
-    } else if (m.type === 'poly') {
-      const pts = m.points;
-      if (pts.length < 2) return null;
-      p.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) p.lineTo(pts[i].x, pts[i].y);
-      p.closePath();
-    }
-    return p;
-  }
-
-  function drawAnts() {
-    if (!state.doc || !ants.width) return;
-    const g = ants.getContext('2d');
-    const ratio = dpr() * state.view.zoom;
-    const zoom = state.view.zoom;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, ants.width, ants.height);
-    g.setTransform(ratio, 0, 0, ratio, 0, 0);
-
-    if (state.guidesX.length || state.guidesY.length || state.guideDrag) {
-      g.save();
-      g.strokeStyle = 'rgba(255, 77, 36, 0.62)';
-      g.lineWidth = 1 / zoom;
-      g.setLineDash([]);
-      g.beginPath();
-      for (const x of state.guidesX) { g.moveTo(x, 0); g.lineTo(x, state.doc.h); }
-      for (const y of state.guidesY) { g.moveTo(0, y); g.lineTo(state.doc.w, y); }
-      const gd = state.guideDrag;
-      if (gd && gd.pos != null) {
-        if (gd.axis === 'x') { g.moveTo(gd.pos, 0); g.lineTo(gd.pos, state.doc.h); }
-        else { g.moveTo(0, gd.pos); g.lineTo(state.doc.w, gd.pos); }
-      }
-      g.stroke();
-      g.restore();
-    }
-
-    const preview = selPreviewPath();
-    if (preview) {
-      g.save();
-      g.lineWidth = 1 / zoom;
-      g.strokeStyle = 'rgba(253, 250, 243, 0.95)';
-      g.setLineDash([]);
-      g.stroke(preview);
-      g.strokeStyle = 'rgba(10, 10, 11, 0.95)';
-      g.setLineDash([5 / zoom, 5 / zoom]);
-      g.lineDashOffset = -state.antsPhase / zoom;
-      g.stroke(preview);
-      g.restore();
-    }
-
-    if (state.sel.active && selPath()) {
-      g.save();
-      g.lineWidth = 1 / zoom;
-      g.strokeStyle = 'rgba(253, 250, 243, 0.92)';
-      g.setLineDash([]);
-      g.stroke(selPath());
-      g.strokeStyle = 'rgba(10, 10, 11, 0.92)';
-      g.setLineDash([5 / zoom, 5 / zoom]);
-      g.lineDashOffset = -state.antsPhase / zoom;
-      g.stroke(selPath());
-      g.restore();
-    }
-    g.setTransform(1, 0, 0, 1, 0, 0);
-  }
-
-  function startAnts() {
-    const tick = (t) => {
-      if (t - antsLast > 95) {
-        antsLast = t;
-        if (state.doc && (state.sel.active || state.selPreview)) {
-          state.antsPhase = (state.antsPhase + 1) % 10;
-          drawAnts();
-        }
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
   }
 
   function fit() {

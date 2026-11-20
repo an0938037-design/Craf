@@ -8,3 +8,4 @@
  * (docs/plan-chuyen-module.md).
  */
 export { selectionPath } from './selectionPath.js';
+export { configure, clearOverlay, requestAnts, drawAnts, startAnts, selPreviewPath } from './overlay.js';
