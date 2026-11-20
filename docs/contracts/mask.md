@@ -170,6 +170,7 @@ maskFromLayerAlpha(layerCanvas) -> MaskAlpha               // alpha > 8 -> 255, 
 maskFromWand(pixels, w, h, x, y, tol) -> MaskAlpha         // pixels: ImageData hoặc Uint8ClampedArray RGBA
 maskTranslate(data, w, h, dx, dy) -> MaskAlpha             // dx,dy THẬP PHÂN; drawImage + readback để giữ đúng độ mượt
 maskExtract(layerCanvas, sel) -> { canvas, x, y }          // layer ∩ mask, canvas bbox-sized, offset = sel.bbox
+// CẤM đọc sel.mask (field tạm ở C4). Phải tự dựng: maskToCanvas(sel.data, sel.w, sel.h, sel.bbox).
 compositeSample(doc, w, h, withBg = true) -> ImageData     // mẫu để wand; xem R7 (trùng 12 dòng với render)
 ```
 

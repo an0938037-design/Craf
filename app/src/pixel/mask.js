@@ -158,19 +158,23 @@ export function maskTranslate(data, w, h, dx, dy) {
 /**
  * Đọc canvas → canvas bbox-sized, offset = sel.bbox (port đầu của
  * `copySelection` app.js:1766-1772). `destination-in` lấy layer ∩ mask.
+ *
+ * Dựng mask canvas từ `sel.data` (KHÔNG đọc `sel.mask`): field đó chỉ tồn tại
+ * tạm ở C4 và bị xoá ở C5, nếu phụ thuộc vào nó thì C5 không thể chạy.
  * @param {HTMLCanvasElement} layerCanvas Canvas lớp (doc cỡ doc).
- * @param {Selection} sel `Selection` đang chọn (có `bbox`).
+ * @param {Selection} sel `Selection` đang chọn (có `bbox`, `data`).
  * @returns {{canvas: HTMLCanvasElement, x: number, y: number}}
  */
 export function maskExtract(layerCanvas, sel) {
   const { x, y, w, h } = sel.bbox;
+  const maskCanvas = maskToCanvas(sel.data, sel.w, sel.h, sel.bbox).canvas;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(layerCanvas, -x, -y);
   ctx.globalCompositeOperation = 'destination-in';
-  ctx.drawImage(sel.mask, -x, -y);
+  ctx.drawImage(maskCanvas, 0, 0);
   return { canvas, x, y };
 }
 
