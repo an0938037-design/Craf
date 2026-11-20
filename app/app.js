@@ -13,6 +13,7 @@ import {
   openMenu, closeMenus, bindMenubar, openPane,
   openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
 } from './src/ui/index.js';
+import { createCommands } from './src/shell/index.js';
 import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './src/shell/index.js';
 
 (() => {
@@ -1545,60 +1546,53 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     });
   }
 
-  function runCommand(name) {
-    const needDoc = !['new', 'open', 'help'].includes(name);
-    if (needDoc && !state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
-    switch (name) {
-      case 'new': openSizeModal('new'); break;
-      case 'open': goStart(); break;
-      case 'save': saveNow(); break;
-      case 'export': openExport(); break;
-      case 'import': $('#fileImage').value = ''; $('#fileImage').click(); break;
-      case 'nott': openDrawer(); break;
-      case 'undo': undo(); break;
-      case 'redo': redo(); break;
-      case 'cut': copySelection(true); break;
-      case 'copy': copySelection(false); break;
-      case 'paste': pasteClipboard(); break;
-      case 'fill': fillSelected(); break;
-      case 'strokeSel': openStrokeModal(); break;
-      case 'clear': clearSelectedContent(); break;
-      case 'imageSize': openSizeModal('image'); break;
-      case 'canvasSize': openSizeModal('canvas'); break;
-      case 'crop': cropToSelection(); break;
-      case 'flipH': flipDoc(true); break;
-      case 'flipV': flipDoc(false); break;
-      case 'rotateL': rotateDoc(-1); break;
-      case 'rotateR': rotateDoc(1); break;
-      case 'invertColors': applyFilter('invert', 'Đã đảo màu lớp'); break;
-      case 'docBg': openDocBgPicker(); break;
-      case 'clearGuides': state.guidesX = []; state.guidesY = []; drawAnts(); toast('Đã xoá đường dóng', 'ok', 1400); break;
-      case 'layerAdd': addLayer(); break;
-      case 'layerDup': duplicateLayer(); break;
-      case 'layerDel': deleteLayer(); break;
-      case 'mergeDown': mergeDown(); break;
-      case 'mergeAll': mergeAll(); break;
-      case 'layerTransform': openTransformModal(); break;
-      case 'selectAll': selectAll(); break;
-      case 'deselect': clearSelection(); break;
-      case 'invertSel': invertSelection(); break;
-      case 'selectLayerContent': selectLayerContent(); break;
-      case 'wand': setTool('wand'); break;
-      case 'marquee': setTool('marquee'); break;
-      case 'lasso': setTool('lasso'); break;
-      case 'filterBlur': applyFilter('blur', 'Đã làm mờ lớp'); break;
-      case 'filterSharpen': applyFilter('sharpen', 'Đã làm nét lớp'); break;
-      case 'filterNoise': applyFilter('noise', 'Đã thêm nhiễu hạt'); break;
-      case 'filterPixel': applyFilter('pixel', 'Đã pixel hoá lớp'); break;
-      case 'filterEmboss': applyFilter('emboss', 'Đã dập nổi lớp'); break;
-      case 'filterVignette': applyFilter('vignette', 'Đã làm tối bốn góc'); break;
-      case 'filterGrain': applyFilter('grain', 'Đã phủ hạt phim'); break;
-      case 'filterGray': applyFilter('gray', 'Đã chuyển trắng đen'); break;
-      case 'filterSepia': applyFilter('sepia', 'Đã phủ nâu cổ'); break;
-      case 'adjustPane': openPaneUI('adjust'); break;
-      default: break;
-    }
+  /* Bảng command → shell/commands.js; ở đây chỉ tiêm hành vi. */
+  function clearGuides() {
+    state.guidesX = []; state.guidesY = [];
+    drawAnts();
+    toast('Đã xoá đường dóng', 'ok', 1400);
   }
+
+  function pickImageFile() {
+    $('#fileImage').value = '';
+    $('#fileImage').click();
+  }
+
+  const runCommand = createCommands({
+    getState: () => state,
+    toast,
+    openSizeModal,
+    openTransformModal,
+    openStrokeModal,
+    openDocBgPicker,
+    openExport,
+    openDrawer,
+    openPaneUI,
+    goStart,
+    saveNow,
+    undo,
+    redo,
+    copySelection,
+    pasteClipboard,
+    fillSelected,
+    clearSelectedContent,
+    cropToSelection,
+    flipDoc,
+    rotateDoc,
+    applyFilter,
+    addLayer,
+    duplicateLayer,
+    deleteLayer,
+    mergeDown,
+    mergeAll,
+    selectAll,
+    clearSelection,
+    invertSelection,
+    selectLayerContent,
+    setTool,
+    clearGuides,
+    importImage: pickImageFile,
+  });
 
   function bindGuides() {
     const rx = $('#rulerX'), ry = $('#rulerY');
