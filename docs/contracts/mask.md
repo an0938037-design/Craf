@@ -186,7 +186,11 @@ replace(selOrNull) -> void         // dùng cho openDoc / undo / applySnapshot
 clear() -> void                    // replace(null) + selPreview = null (preview do render giữ)
 contains(x, y) -> boolean          // core.maskPick(get().data, ...)
 revision() -> number
+configure({ getDocSize }) -> void  // BẮT BUỘC: () => ({w,h}) | null. Model không đọc global/state.
 ```
+**Nguồn kích thước doc:** `apply()` cần `w,h` để cấp mảng và tính bbox, nhưng `model` không được đọc `state`. Vì vậy `app.js` (sau này `shell`) gọi `configure({ getDocSize })` **một lần** ngay sau khi `state` được tạo; `getDocSize` trả `{w,h}` của doc hiện tại hoặc `null`. Nếu chưa configure hoặc doc null ⇒ `apply()` trả `null` và không đổi trạng thái.
+
+`clear()` **không** đụng `selPreview`: preview thuộc `render`, `app.js` tự đặt `state.selPreview = null`.
 `model/selection.js` **không** được: dựng canvas, dựng Path2D, gọi `render`, gọi `pixel`, đọc DOM. Nó chỉ giữ bytes + bbox + rev.
 
 ### 4.7. `render/overlay.js` (tạo mới ở P3-5)
@@ -241,7 +245,7 @@ model.selection.apply(mask, mode);
 3. `sel.bbox` là **ảnh chụp tại thời điểm commit**, không tính lại, không sửa. Nó có thể không khớp nếu ai đó sửa `data` — bất biến #1 chặn việc đó.
 4. `sel.rev` tăng đơn điệu, +1 mỗi `apply/replace/clear`. Cache dẫn xuất **chỉ** được dùng lại khi `rev` trùng.
 5. Cache dẫn xuất giữ **tối đa 1 entry** mỗi module. Không Map theo rev (rò rỉ).
-6. `state.sel` trong `app.js` (và facade `store` ở P2) là **view**: gán `state.sel = x` phải đi qua `model.selection.replace(x)`; đọc `state.sel` trả `model.selection.get()`. Giai đoạn chuyển tiếp được phép có thêm `state.sel.mask` (canvas) và `state.sel.path` (Path2D) — hai field này **biến mất** ở C5/C6.
+6. `state.sel` trong `app.js` (và facade `store` ở P2) là **view**: gán `state.sel = x` phải đi qua `model.selection.replace(x)`; đọc `state.sel` trả `model.selection.get()`. Giai đoạn chuyển tiếp được phép có thêm `state.sel.mask` (canvas, **getter lazy**) và `state.sel.path` (Path2D, eager) — hai field này **biến mất** ở C5/C6.
 
 ### 5.3. Undo — chính sách dứt khoát
 
@@ -314,11 +318,13 @@ Quy tắc luồng:
 | **C1** | `core/mask.js` + `core/path.js`; bổ sung `previewGeometry`, `shapeGeometry(d,tool)` | `app/src/core/mask.js`, `path.js`, `geometry.js`, `index.js` | `node tools/check-boundaries.mjs` SẠCH (chưa ai import ⇒ 0 rủi ro). Script rời (không commit) so `maskSegments` với fixture 3 ca: rect, tam giác lasso, 2 khối rời | — | xoá 3 file + 3 dòng export |
 | **C2** | `platform/path2d.js` | `app/src/platform/path2d.js`, `index.js` | Cổng SẠCH; test tay: `pathFromCommands([0,0,0,1,10,0,1,10,10,2])` stroke ra tam giác | — | xoá file + 1 export |
 | **C3** | `pixel/mask.js` (toàn bộ adapter, chưa dùng) + `pixel/compositeSample` | `app/src/pixel/mask.js`, `index.js` | Cổng SẠCH; so `maskFromCanvas(maskCũ)` với `getImageData` trên doc thật: **cùng 1.458.000 byte alpha** | — | xoá file + export |
-| **C4** | **Switch biểu diễn.** `model/selection.js`; `app.js`: `newMask/selectionBounds/maskSegments/pathFromSegments/setSelection/clearSelection/selectAll/invertSelection/selectLayerContent/pointInSelection/translateSelection/maskFromRect/maskFromPolygon` gọi `core`+`pixel`+`model`. `state.sel` thành view; **vẫn dựng eager** `sel.mask` (canvas, `maskToCanvas(...,null)`) và `sel.path` (Path2D) | `app/src/model/selection.js` (mới), `model/index.js`, `app/app.js` | Cổng SẠCH. Chạy checklist mục 4–7. So 6 số C0: **không số nào xấu hơn 10%**. Ảnh export PNG: hash trùng | C1–C3 | **Điểm rollback chính**: `git revert C4` — C1–C3 ở lại vô hại |
+| **C4** | **Switch biểu diễn.** `model/selection.js`; `app.js`: `newMask/selectionBounds/maskSegments/pathFromSegments/setSelection/clearSelection/selectAll/invertSelection/selectLayerContent/pointInSelection/translateSelection/maskFromRect/maskFromPolygon` gọi `core`+`pixel`+`model`. `state.sel` thành getter chỉ đọc; **`sel.path` dựng eager** (ants cần ngay), **`sel.mask` dựng PARESSEUX** (getter, chỉ copy/cut/move/floodFill đọc — xem ghi chú dưới) | `app/src/model/selection.js` (mới), `model/index.js`, `app/app.js` | Cổng SẠCH. Chạy checklist mục 4–7. So 6 số C0: **không số nào xấu hơn 10%**. Ảnh export PNG: hash trùng | C1–C3 | **Điểm rollback chính**: `git revert C4` — C1–C3 ở lại vô hại |
 | **C5** | Bỏ `sel.mask` canvas: `copySelection`/`beginMove` dùng `pixel.maskExtract(layer.canvas, sel)`; `floodFill` dùng `sel.data` | `app/app.js` (1766–1772, 2147–2153, 2183, 2341–2342) | Copy/cut/move: hash `toDataURL` của layer trước/sau **trùng từng byte** với C0 (cùng thao tác, cùng toạ độ). `state.sel.mask` xuất hiện 0 lần trong `app.js` | C4 | revert C5 |
 | **C6** | Bỏ `sel.path`: `drawAnts` + 12 chỗ `clip` lấy path từ `render.selectionPath(sel)` / `pixel.selectionPath(sel)` | `app/app.js`, (C7 sẽ chuyển tiếp) | Số pixel ants **bằng đúng** C0. Thêm đếm: `maskSegments` gọi **0 lần** trong 20 frame ants (bọc hàm bằng console) | C4 | revert C6 |
 | **C7** | Chuyển `drawAnts/requestAnts/startAnts/previewGeometry/selPreviewPath/clearOverlay` → `render/overlay.js`; `maskFromWand/applyStrokeSelection/fillSelected/clearSelectedContent/copySelection/cropToSelection` → `pixel/` (P3-3, P3-5) | `render/`, `pixel/`, `app/app.js` | Cổng SẠCH; cổng chứng minh `render` **không** import `pixel` (đã có). Checklist 4–7, 13–14 | C5, C6 | revert từng section |
 | **C8** | `tools/marquee.js` + `tools/wand.js` dùng `model.selection.apply`; xoá `beginMarquee/finishMarquee/wandSelect/syncMarqueePreview` khỏi `app.js` | `tools/`, `app/app.js` | Cổng SẠCH; `grep -r "from '.*ui" app/src/tools` rỗng; số đo C0 trùng | C7 | revert |
+
+**Ghi chú C4 (đo 2026-11-20, 1080×1350):** dựng `sel.mask` **eager** tốn **58,7 ms/lần chọn** (full-frame `ImageData` 1.458.000 px) trong khi đường chọn không đọc nó — chỉ `copySelection`, `beginMove`, `floodFill` đọc. Vì vậy `sel.mask` là getter lazy. Đo cùng phiên: pipeline chọn mới **68,5 ms** vs code cũ **96,7 ms** (nhanh hơn 29%). Nếu ai đó "đơn giản hoá" thành eager, C4 sẽ **chậm hơn** code cũ ~20% và trượt A3 — đừng làm.
 
 **Thứ tự an toàn:** C1, C2, C3 **độc lập hoàn toàn** — chia cho 2 người, không chạm file nhau (C1 `core/`, C2 `platform/`, C3 `pixel/`). C4 là nút thắt, phải một người, phải review. C5 và C6 **có thể đảo thứ tự** nhưng đừng gộp một commit: mỗi cái có một phép so riêng. C7 và C8 tách theo section, không gộp.
 

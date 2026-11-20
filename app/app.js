@@ -434,9 +434,18 @@ import { selection } from './src/model/index.js';
       return;
     }
     const { w, h } = state.doc;
-    const mask = maskToCanvas(sel.data, w, h).canvas;
     const path = pathFromCommands(segmentsToCommands(maskSegments(sel.data, w, h)));
-    selView = { active: true, mask, path, bbox: sel.bbox, data: sel.data, rev: sel.rev };
+    // `mask` là cache canvas DẪN XUẤT, chỉ copy/cut/move/floodFill đọc. Dựng
+    // paresseux: đường chọn (marquee/lasso/wand/ants) không phải trả giá cho nó.
+    // Field này biến mất ở C5; không thêm chỗ đọc mới.
+    let maskCache = null;
+    selView = {
+      active: true, path, bbox: sel.bbox, data: sel.data, rev: sel.rev,
+      get mask() {
+        if (!maskCache) maskCache = maskToCanvas(sel.data, w, h).canvas;
+        return maskCache;
+      },
+    };
   }
 
   function setSelection(mask, mode = 'replace') {

@@ -50,9 +50,34 @@ Nếu C4 vượt ngưỡng: tối ưu **bên trong** `core.maskSegments` (duyệ
 - `wand` phụ thuộc nội dung ảnh tại điểm click. Baseline này click đúng tâm poster mẫu; đổi nội dung ⇒ đổi số đo.
 - Pixel ants phụ thuộc pha nhấp nháy (ants chạy 95 ms/frame). Đếm sau 250 ms nên có thể lệch ±1 frame viền; nếu C6 ra 1.410–1.418 thì kiểm lại bằng cách đếm 3 lần lấy trung vị, đừng kết luận ngay là hỏng.
 
-## Cách chạy lại
+## Đo C4 — so sánh cùng phiên (2026-11-20)
 
-Script đo nằm trong phiên làm việc (không commit vì là script tạm theo đúng C0). Tóm tắt để dựng lại:
+Số C0 ở trên đo lúc tab đang hiển thị bình thường. Về sau, khi cửa sổ bị thu nhỏ/che khuất, Chromium hạ ưu tiên tab: một vòng lặp 50 triệu phép tính từ ~120 ms tăng lên **672 ms** (~5,6×). Vì vậy **không so số tuyệt đối với bảng C0** khi môi trường đổi — phải so **code cũ và code mới trong cùng một phiên**, cùng tab, cùng doc.
+
+Cách đo đối chứng: dựng lại nguyên văn pipeline cũ (canvas RGBA → `getImageData` ×2 → quét alpha ×2 → `Path2D`) trong trang, chạy cạnh pipeline mới trên cùng mask lasso 40 điểm, mỗi bên 5 lượt lấy trung vị.
+
+| Phép | Code cũ | Code mới (C4, lazy `sel.mask`) | Kết luận |
+|---|---|---|---|
+| Lasso 40 điểm, toàn pipeline chọn | **96,7 ms** | **68,5 ms** | mới nhanh hơn **29%** |
+| `maskFromWand` (cùng `ImageData`) | 29,0 ms | 26,7 ms | mới nhanh hơn |
+| Gesture marquee 300×400 (sync trong `pointerup`) | — | 59 ms | — |
+| Gesture lasso 40 điểm | — | 97 ms | — |
+| Gesture move 100 px | — | 27,7 ms | — |
+| Readback toàn khung / thao tác | 2 (marquee), 3 (wand) | **0** (marquee), **1** (lasso/wand/move) | đúng hợp đồng A2 |
+
+**Phát hiện quan trọng:** dựng `sel.mask` eager tốn **58,7 ms** mỗi lần chọn (full-frame `ImageData` 1.458.000 px) trong khi đường chọn không đọc nó. Đổi thành getter lazy ⇒ toàn bộ chi phí đó biến mất khỏi thao tác chọn. Nếu để eager, C4 chậm hơn code cũ ~20%.
+
+Kiểm đúng đắn cùng phiên:
+
+| # | Kết quả |
+|---|---|
+| A5 (hình học) | `Path2D` fill vùng rect 300×400 = **120.000 px** đúng; ants trên màn hình ở zoom 31,5% = **1.414 px**, bằng C0 |
+| A9 (bộ nhớ) | `sel.data.byteLength` = **1.458.000** = 1080×1350 |
+| A10 (combine) | rect → lasso `subtract`: tâm **255 → 0**, bbox giữ 300×400; `add` lại: tâm **→ 255** |
+| A11 (undo) | có history rồi undo ⇒ `selection.isActive()` **true → false** |
+| Copy/paste | `Ctrl+C` → `Ctrl+V` tạo lớp mới (1 → 2), console **0 lỗi** |
+
+## Cách chạy lại
 
 1. Mở `http://127.0.0.1:7317/`, tạo doc Poster 1080×1350.
 2. Bọc `getImageData` như mục Phương pháp.
