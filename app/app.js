@@ -2,7 +2,7 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskTranslate, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, paintSegment as paintStroke, stampBrush, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, sampleHex, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, notify } from './src/tools/index.js';
@@ -1228,60 +1228,11 @@ import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee,
     return Math.max(0.6, base * (0.58 + 0.84 * p));
   }
 
-  function stampBrush(ctx, x, y, r, color, hardness, erase) {
-    const rgb = hexToRgb(color);
-    const solid = `rgba(${rgb.r},${rgb.g},${rgb.b},1)`;
-    const clear = `rgba(${rgb.r},${rgb.g},${rgb.b},0)`;
-    const inner = clamp(hardness, 0, 0.97);
-    const grad = ctx.createRadialGradient(x, y, Math.max(0.01, r * inner), x, y, Math.max(0.02, r));
-    grad.addColorStop(0, solid);
-    grad.addColorStop(inner, solid);
-    grad.addColorStop(1, clear);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+  /* Nét cọ: phần điểm ảnh nằm ở pixel/brush.js; ở đây chỉ bơm tham số tool. */
+  function paintSegment(ctx, a, b, c, color, width, erase) {
+    paintStroke(ctx, a, b, c, { color, width, erase, opacity: state.opacity, hardness: state.hardness });
   }
 
-  function paintSegment(ctx, a, b, c, color, width, erase) {
-    const r = Math.max(0.5, width / 2);
-    ctx.save();
-    ctx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
-    ctx.globalAlpha = erase ? 1 : state.opacity;
-    if (state.hardness >= 0.82) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      if (c) ctx.quadraticCurveTo(b.x, b.y, c.x, c.y);
-      else ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-      ctx.restore();
-      return;
-    }
-    const at = (t) => c
-      ? {
-        x: (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * b.x + t * t * c.x,
-        y: (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * b.y + t * t * c.y,
-      }
-      : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-    let len = 0;
-    let prev = at(0);
-    for (let i = 1; i <= 10; i++) {
-      const p = at(i / 10);
-      len += Math.hypot(p.x - prev.x, p.y - prev.y);
-      prev = p;
-    }
-    const step = Math.max(0.7, r * 0.3);
-    const n = Math.max(1, Math.ceil(len / step));
-    for (let i = 0; i <= n; i++) {
-      const p = at(i / n);
-      stampBrush(ctx, p.x, p.y, r, color, state.hardness, erase);
-    }
-    ctx.restore();
-  }
 
   function beginDraw(e) {
     const pt = toDoc(e);
