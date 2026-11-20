@@ -300,7 +300,9 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
         vals: adjustDefaults(),
         pushed: false,
       };
-      syncAdjustUI();
+      /* Không syncAdjustUI ở đây: readAdjustUI gọi ensureAdjust TRƯỚC khi đọc
+         slider, sync sẽ ghi đè giá trị người dùng vừa kéo ở lần chỉnh đầu tiên.
+         Nơi cần đồng bộ DOM (mở pane, reset) đã tự gọi syncAdjustUI. */
     }
     return state.adjust;
   }

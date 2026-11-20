@@ -50,24 +50,48 @@ export function setSaveState(kind) {
   el.title = span.textContent;
 }
 
+/* Số lần nội dung đổi. Dùng để biết trong lúc chờ API có phát sinh sửa đổi
+   mới hay không; nếu có thì không được đánh dấu "đã lưu" và phải lưu tiếp. */
+let editRev = 0;
+
 /** Đánh dấu bẩn và hẹn autosave sau 1 giây. */
 export function markDirty() {
+  editRev++;
   state.dirty = true;
   setSaveState('dirty');
   clearTimeout(state.saveTimer);
   state.saveTimer = setTimeout(saveNow, 1000);
 }
 
+/** Chờ lần lưu đang chạy xong (dùng trước khi rời studio). */
+export async function waitForSave() {
+  while (state.saving) await new Promise((r) => setTimeout(r, 40));
+}
+
 export async function saveNow() {
   clearTimeout(state.saveTimer);
-  if (!state.doc || state.saving) return;
+  state.saveTimer = 0;
+  if (!state.doc) return;
+  /* Đang lưu: hẹn lưu lại thay vì bỏ mất thay đổi mới. */
+  if (state.saving) {
+    state.saveTimer = setTimeout(saveNow, 300);
+    return;
+  }
   state.saving = true;
   setSaveState('saving');
   const doc = state.doc;
+  const rev = editRev;
   const payload = toPayload(doc, (l) => pngDataURL(l.canvas), thumbData());
+  let ok = false;
   try {
     const res = await api('/api/projects', payload);
-    state.dirty = false;
+    ok = true;
+    if (editRev === rev) {
+      state.dirty = false;
+      setSaveState('saved');
+    } else {
+      setSaveState('dirty');
+    }
     const entry = {
       id: doc.id, name: doc.name, w: doc.w, h: doc.h,
       updatedAt: res.updatedAt || Date.now(), thumb: `/library/${doc.id}.jpg`,
@@ -75,13 +99,16 @@ export async function saveNow() {
     const ix = state.projects.findIndex((p) => p.id === doc.id);
     if (ix >= 0) state.projects[ix] = entry; else state.projects.unshift(entry);
     state.projects.sort((a, b) => b.updatedAt - a.updatedAt);
-    setSaveState('saved');
     renderRecent();
   } catch (err) {
     setSaveState('dirty');
     toast('Không lưu được: ' + err.message, 'err');
   } finally {
     state.saving = false;
+    if (ok && editRev !== rev) {
+      clearTimeout(state.saveTimer);
+      state.saveTimer = setTimeout(saveNow, 0);
+    }
   }
 }
 

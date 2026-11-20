@@ -12,7 +12,7 @@ import { activate, docFromJSON, layerFromJSON, newDocData, state, uniqueProjectN
 import { createLayer as newLayer } from '../pixel/index.js';
 import { applyView, clearOverlay, fit } from '../render/index.js';
 import { closeDrawer, closeSizeModal, renderLayers, renderPalette, sizeState, syncAdjustUI, toast } from '../ui/index.js';
-import { api, markDirty, refresh, saveNow, setSaveState } from './storage.js';
+import { api, markDirty, refresh, saveNow, setSaveState, waitForSave } from './storage.js';
 import { resizeImage, resizeCanvas } from './geometry.js';
 
 /* ------------------------------------------------------------------ deps */
@@ -86,7 +86,9 @@ export async function openProject(id) {
 }
 
 export async function goStart() {
-  await saveNow();
+  /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio. */
+  await waitForSave();
+  if (state.dirty) await saveNow();
   state.doc = null;
   state.draw = null;
   document.body.dataset.mode = 'start';
