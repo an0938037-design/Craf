@@ -20,6 +20,14 @@ export {
 } from './storage.js';
 export { createCommands } from './commands.js';
 export { createKeyHandler, bindKeymap } from './keymap.js';
+export {
+  previewDoc, createProject, openDoc, openProject, goStart, showStudio,
+  createTemplate, seedPoster, seedMonogram, seedBands, applySizeModal,
+} from './documents.js';
+export {
+  updateDocMeta, afterGeometryChange, resizeImage, resizeCanvas, cropToSelection,
+  flipDoc, rotateDoc, applyLayerTransform,
+} from './geometry.js';
 
 /* Composition root: chạy một lần khi index.html nạp module này. */
 import './boot.js';

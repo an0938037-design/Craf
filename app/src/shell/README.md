@@ -1,7 +1,9 @@
 # `shell/` — composition root
 
 ## Owns
-- `boot.js` — `boot`, `showStudio`.
+- `boot.js` — composition root: `bind`, `boot`, configure mọi section, drawing engine + pointer/pan orchestration, `makeCanvas` (dùng bởi renderAdjustPreview), `sendToNott`.
+- `documents.js` — lifecycle doc: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, `seedPoster`, `seedMonogram`, `seedBands`, `previewDoc`, `applySizeModal`. Nhận deps: `syncSelView`, `clearSelection`, `updateToolUI`. (P5-9)
+- `geometry.js` — hình học bản vẽ: `updateDocMeta`, `afterGeometryChange`, `resizeImage`, `resizeCanvas`, `cropToSelection`, `flipDoc`, `rotateDoc`, `applyLayerTransform`. Nhận deps: `clearSelection`, `finishAdjust`, `pushDocHistory`, `pushLayerHistory`, `render`, `updateLayerThumb`. (P5-9)
 - `keymap.js` — `createKeyHandler`/`bindKeymap` (Escape, Ctrl+Z/Y/S/E/G/A/D/C/X/V/J/T/M, Delete, `[`/`]`, `0`, `1`, `?`, phím tắt tool, Space pan). Hành vi được **tiêm** qua deps.
 - `commands.js` — `createCommands(deps)` → `runCommand`; menubar chỉ định tuyến tên command.
 - `bus.js` — bus command/event duy nhất nối `ui` ↔ `tools`.
@@ -23,6 +25,8 @@ Tất cả.
 - `storage.js` — `api`, `markDirty`, `setSaveState`, `saveNow`, `compositeCanvas`, `openExport`, `exportDims`, `updateExportInfo`, `runExport`, `refresh`, `refreshNott` (P5-5).
 - `commands.js` — `runCommand` (P5-5). Nhận deps; `app.js` vẫn giữ `clearGuides`/`pickImageFile`.
 - `keymap.js` — `onKey` + keyup Space (P5-6). Nhận deps; `app.js` chỉ còn gọi `bindKeymap({...})` trong `bind()`.
+- `documents.js` — doc lifecycle: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, seed, `previewDoc`, `applySizeModal` (P5-9).
+- `geometry.js` — resize/crop/flip/rotate + meta hiển thị: `updateDocMeta`, `afterGeometryChange`, `resizeImage`, `resizeCanvas`, `cropToSelection`, `flipDoc`, `rotateDoc`, `applyLayerTransform` (P5-9).
 
 ## Quy ước bus
 - `bus.dispatch('tool:size', 24)` — ui → tools (lệnh, có thể thay đổi trạng thái).
