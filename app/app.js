@@ -1,7 +1,7 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
-import { bezierPoints, maskAll, maskBounds, maskInvert } from './src/core/index.js';
+import { maskAll, maskBounds, maskInvert } from './src/core/index.js';
 import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from './src/pixel/index.js';
 import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
@@ -12,6 +12,8 @@ import {
   adjustDefaults, syncAdjustUI,
   openMenu, closeMenus, bindMenubar, openPane,
   openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
+  configureModals, openSizeModal, closeSizeModal, openTransformModal, closeTransformModal,
+  openStrokeModal, closeStrokeModal, openDocBgPicker, previewDocBg, commitDocBg, sizeState, paintHero,
 } from './src/ui/index.js';
 import { createCommands, bindKeymap } from './src/shell/index.js';
 import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './src/shell/index.js';
@@ -283,6 +285,16 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
       renderLayers(); render(); markDirty();
     },
     paintThumb: (ctx, layer, doc, size) => drawLayerThumb(ctx, layer, doc, size),
+  });
+
+  /* Hộp thoại size/transform/stroke/màu nền → ui/modals.js. */
+  configureModals({
+    getState: () => state,
+    finishAdjust,
+    toast,
+    pushDocHistory,
+    render,
+    markDirty,
   });
 
   function selectLayer(i) {
@@ -678,20 +690,6 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     render(); updateLayerThumb(); markDirty();
   }
 
-  function openStrokeModal() {
-    if (!state.doc) return;
-    if (!state.sel.active) { toast('Tạo một vùng chọn trước đã', 'warn'); return; }
-    finishAdjust();
-    $('#strokeWidth').value = '4';
-    $('#strokeAlign').value = 'center';
-    $('#strokeColor').value = 'fg';
-    $('#strokeModal').hidden = false;
-    $('#strokeWidth').focus();
-    $('#strokeWidth').select();
-  }
-
-  function closeStrokeModal() { $('#strokeModal').hidden = true; }
-
   function applyStrokeSelection() {
     const layer = activeLayer();
     if (!layer || !state.sel.active) { closeStrokeModal(); return; }
@@ -703,24 +701,6 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     strokePath(layer.ctx, selPath(), { docW: state.doc.w, docH: state.doc.h, color, width, align });
     render(); updateLayerThumb(); markDirty();
     toast(`Đã viền vùng chọn · ${width}px`, 'ok', 1600);
-  }
-
-  let docBgPushed = false;
-  function openDocBgPicker() {
-    if (!state.doc) return;
-    finishAdjust();
-    docBgPushed = false;
-    const p = $('#docBgPicker');
-    p.value = state.doc.bg || '#FDFAF3';
-    p.click();
-  }
-
-  function previewDocBg(hex) {
-    if (!state.doc) return;
-    if (!docBgPushed) { pushDocHistory(); docBgPushed = true; }
-    state.doc.bg = hex;
-    render();
-    markDirty();
   }
 
   async function importImageData(url, name) {
@@ -1204,52 +1184,7 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     toast(dir > 0 ? 'Đã xoay 90° phải' : 'Đã xoay 90° trái', 'ok', 1600);
   }
 
-  let sizeMode = 'image';
-  let sizeRatio = 0.8;
-  function openSizeModal(mode) {
-    sizeMode = mode;
-    const doc = state.doc;
-    const startW = mode === 'new' ? 1080 : doc.w;
-    const startH = mode === 'new' ? 1350 : doc.h;
-    sizeRatio = startW / startH;
-    $('#sizeW').value = String(startW);
-    $('#sizeH').value = String(startH);
-    $('#sizeKeepRow').hidden = mode === 'canvas';
-    $('#sizeAnchorRow').hidden = mode !== 'canvas';
-    if (mode === 'new') {
-      $('#sizeTitle').textContent = 'Bản vẽ mới';
-      $('#sizeNote').textContent = 'Mở một tờ giấy trắng với kích thước bạn muốn. Bản vẽ đang mở sẽ được lưu trước.';
-      $('#btnSizeApply').textContent = 'Mở bản vẽ';
-    } else if (mode === 'image') {
-      $('#sizeTitle').textContent = 'Kích thước ảnh';
-      $('#sizeNote').textContent = 'Phóng to hoặc thu nhỏ toàn bộ nội dung. Các lớp được lấy mẫu lại theo kích thước mới.';
-      $('#btnSizeApply').textContent = 'Đổi kích thước';
-    } else {
-      $('#sizeTitle').textContent = 'Kích thước canvas';
-      $('#sizeNote').textContent = 'Mở rộng hoặc thu hẹp khung giấy, giữ nguyên độ lớn của nội dung. Chọn điểm neo để đặt nội dung.';
-      $('#btnSizeApply').textContent = 'Đổi canvas';
-    }
-    $('#sizeModal').hidden = false;
-    $('#sizeW').focus();
-    $('#sizeW').select();
-  }
-
-  function closeSizeModal() { $('#sizeModal').hidden = true; }
-
-  function openTransformModal() {
-    if (!state.doc) return;
-    finishAdjust();
-    $('#tfScaleX').value = '100';
-    $('#tfScaleY').value = '100';
-    $('#tfAngle').value = '0';
-    $('#tfFlipH').checked = false;
-    $('#tfFlipV').checked = false;
-    $('#transformModal').hidden = false;
-    $('#tfScaleX').focus();
-    $('#tfScaleX').select();
-  }
-
-  function closeTransformModal() { $('#transformModal').hidden = true; }
+  /* open/close size + transform → ui/modals.js; apply* ở lại vì cần pixel. */
 
   function applyLayerTransform() {
     const layer = activeLayer();
@@ -1288,12 +1223,13 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     const w = clamp(parseInt($('#sizeW').value, 10) || 1080, 16, 6000);
     const h = clamp(parseInt($('#sizeH').value, 10) || 1350, 16, 6000);
     closeSizeModal();
-    if (sizeMode === 'new') {
+    const { mode } = sizeState();
+    if (mode === 'new') {
       saveNow();
       createProject(`Bản vẽ ${w}×${h}`, w, h);
-    } else if (sizeMode === 'image') {
+    } else if (mode === 'image') {
       resizeImage(w, h);
-    } else if (sizeMode === 'canvas') {
+    } else if (mode === 'canvas') {
       resizeCanvas(w, h, $('#sizeAnchor').value);
     }
   }
@@ -1394,146 +1330,7 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     doc.active = 1;
   }
 
-  /* ------------------------------------------------------------------ hero poster */
-  function spacedText(ctx, text, x, y, spacing, align = 'left') {
-    const chars = Array.from(text);
-    let width = 0;
-    for (const ch of chars) width += ctx.measureText(ch).width + spacing;
-    width -= spacing;
-    let cx = align === 'right' ? x - width : x;
-    for (const ch of chars) {
-      ctx.fillText(ch, cx, y);
-      cx += ctx.measureText(ch).width + spacing;
-    }
-    return width;
-  }
-
-  function grain(ctx, w, h) {
-    const n = makeCanvas(180, 180);
-    const nc = n.getContext('2d');
-    const img = nc.createImageData(180, 180);
-    for (let i = 0; i < img.data.length; i += 4) {
-      const v = 208 + Math.random() * 47;
-      img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 52;
-    }
-    nc.putImageData(img, 0, 0);
-    const pat = ctx.createPattern(n, 'repeat');
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.62;
-    ctx.fillStyle = pat;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
-  }
-
-  function inkRibbon(ctx, pts, widthAt, color, upto = 1) {
-    const n = Math.max(2, Math.floor(pts.length * upto));
-    const left = [], right = [];
-    for (let i = 0; i < n; i++) {
-      const p = pts[i];
-      const q = pts[Math.min(i + 1, pts.length - 1)];
-      const dx = q.x - p.x, dy = q.y - p.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len, ny = dx / len;
-      const w = widthAt(i / Math.max(1, pts.length - 1)) / 2;
-      left.push({ x: p.x + nx * w, y: p.y + ny * w });
-      right.push({ x: p.x - nx * w, y: p.y - ny * w });
-    }
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(left[0].x, left[0].y);
-    for (let i = 1; i < left.length; i++) ctx.lineTo(left[i].x, left[i].y);
-    for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-
-  let heroRun = 0;
-  async function paintHero() {
-    const c = $('#heroPoster');
-    if (!c) return;
-    const run = ++heroRun;
-    try {
-      await document.fonts.load('500 140px "Fraunces"');
-      await document.fonts.load('italic 500 140px "Fraunces"');
-      await document.fonts.load('400 20px "Geist Mono"');
-    } catch { /* fall back */ }
-    const W = 1080, H = 1350;
-    const ctx = c.getContext('2d');
-    const drawBase = () => {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = '#F6F1E5';
-      ctx.fillRect(0, 0, W, H);
-      grain(ctx, W, H);
-      ctx.strokeStyle = 'rgba(22,19,14,.18)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(88, 150); ctx.lineTo(992, 150); ctx.stroke();
-      ctx.fillStyle = 'rgba(22,19,14,.72)';
-      ctx.font = '400 20px "Geist Mono", monospace';
-      spacedText(ctx, 'CRAF — BÀN VẼ SỐ 01', 88, 112, 2.6);
-      ctx.textAlign = 'right';
-      ctx.fillText('19 · 11 · 2026', 992, 112);
-      ctx.textAlign = 'left';
-      ctx.strokeStyle = 'rgba(22,19,14,.26)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(846, 536, 352, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#FF4D24';
-      ctx.beginPath(); ctx.arc(846, 536, 300, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#F6F1E5';
-      ctx.beginPath(); ctx.arc(846, 536, 62, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#16130E';
-      ctx.font = '400 34px "Geist Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('01', 846, 548);
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#16130E';
-      ctx.font = '500 140px "Fraunces", Georgia, serif';
-      ctx.fillText('Vẽ ra thứ', 88, 1078);
-      ctx.fillStyle = '#FF4D24';
-      ctx.font = 'italic 500 140px "Fraunces", Georgia, serif';
-      ctx.fillText('đáng để giữ.', 88, 1216);
-      ctx.strokeStyle = 'rgba(22,19,14,.18)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(88, 1268); ctx.lineTo(992, 1268); ctx.stroke();
-      ctx.fillStyle = 'rgba(22,19,14,.62)';
-      ctx.font = '400 18px "Geist Mono", monospace';
-      ctx.fillText('POSTER · 1080 × 1350', 88, 1308);
-      ctx.textAlign = 'right';
-      ctx.fillText('NOTT READY', 992, 1308);
-      ctx.textAlign = 'left';
-      ctx.save();
-      ctx.translate(54, 880);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillStyle = 'rgba(22,19,14,.42)';
-      ctx.font = '400 15px "Geist Mono", monospace';
-      spacedText(ctx, 'BÀN VẼ CỤC BỘ — CRAF 01', 0, 0, 1.8);
-      ctx.restore();
-      ctx.strokeStyle = 'rgba(22,19,14,.3)';
-      ctx.lineWidth = 1.5;
-      [[40, 40, 1, 1], [1040, 40, -1, 1], [40, 1310, 1, -1], [1040, 1310, -1, -1]].forEach(([x, y, sx, sy]) => {
-        ctx.beginPath();
-        ctx.moveTo(x + 20 * sx, y); ctx.lineTo(x, y); ctx.lineTo(x, y + 20 * sy);
-        ctx.stroke();
-      });
-    };
-    drawBase();
-    const path = bezierPoints({ x: 92, y: 826 }, { x: 330, y: 676 }, { x: 650, y: 930 }, { x: 1000, y: 744 });
-    const widthAt = (t) => 6 + 26 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.06)), 0.62);
-    const t0 = performance.now();
-    const dur = 1100;
-    const step = () => {
-      if (run !== heroRun) return;
-      const k = Math.min(1, (performance.now() - t0) / dur);
-      const eased = 1 - Math.pow(1 - k, 3);
-      drawBase();
-      inkRibbon(ctx, path, widthAt, '#16130E', Math.max(0.01, eased));
-      if (k < 1) requestAnimationFrame(step);
-      else inkRibbon(ctx, path, widthAt, '#16130E', 1);
-    };
-    step();
-  }
+  /* Hero poster → ui/hero.js. */
 
   /* Ngăn kéo Nott + trợ giúp → ui/drawer.js. */
 
@@ -1773,8 +1570,7 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     $('#bgPicker').addEventListener('input', () => setBgColor($('#bgPicker').value));
     $('#docBgPicker').addEventListener('input', () => previewDocBg($('#docBgPicker').value));
     $('#docBgPicker').addEventListener('change', () => {
-      if (docBgPushed) toast('Đã đổi màu nền canvas', 'ok', 1400);
-      docBgPushed = false;
+      if (commitDocBg()) toast('Đã đổi màu nền canvas', 'ok', 1400);
     });
 
     ['adjBright', 'adjContrast', 'adjSaturate', 'adjHue', 'adjBlur', 'adjBlack', 'adjWhite', 'adjGamma', 'adjGray', 'adjSepia', 'adjInvert'].forEach((id) => {
@@ -1788,15 +1584,18 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     $('#btnSizeClose').addEventListener('click', closeSizeModal);
     $('#btnSizeCancel').addEventListener('click', closeSizeModal);
     $('#btnSizeApply').addEventListener('click', applySizeModal);
-    $('#sizeModal').addEventListener('click', (e) => { if (e.target.id === 'sizeModal') closeSizeModal(); });    $('#sizeW').addEventListener('input', () => {
-      if (sizeMode !== 'image' || !$('#sizeKeep').checked) return;
+    $('#sizeModal').addEventListener('click', (e) => { if (e.target.id === 'sizeModal') closeSizeModal(); });
+    $('#sizeW').addEventListener('input', () => {
+      const { mode, ratio } = sizeState();
+      if (mode !== 'image' || !$('#sizeKeep').checked) return;
       const w = parseInt($('#sizeW').value, 10);
-      if (w > 0) $('#sizeH').value = String(Math.max(16, Math.round(w / sizeRatio)));
+      if (w > 0) $('#sizeH').value = String(Math.max(16, Math.round(w / ratio)));
     });
     $('#sizeH').addEventListener('input', () => {
-      if (sizeMode !== 'image' || !$('#sizeKeep').checked) return;
+      const { mode, ratio } = sizeState();
+      if (mode !== 'image' || !$('#sizeKeep').checked) return;
       const h = parseInt($('#sizeH').value, 10);
-      if (h > 0) $('#sizeW').value = String(Math.max(16, Math.round(h * sizeRatio)));
+      if (h > 0) $('#sizeW').value = String(Math.max(16, Math.round(h * ratio)));
     });
 
     $('#btnTfClose').addEventListener('click', closeTransformModal);

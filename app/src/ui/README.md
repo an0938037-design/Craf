@@ -1,13 +1,14 @@
 # `ui/` — panel và chrome
 
 ## Owns
-- `start.js` — `renderPresets`, `openCustomPreset`, `projectCard`, `timeAgo`, `renderRecent`, `renderTemplates`, `paintTemplatePreviews`.
-- `nott.js` — `renderNott`, `openDrawer`, `closeDrawer`.
-- `layers.js` — `renderLayers`, `selectLayer`, `startRename`, `syncLayerProps`.
-- `inspector.js` — `renderPalette`, `markSwatches`, `setColor`, `swapColors`, `resetColors`, `setFill`, `hslFromUI`.
-- `adjust-panel.js` — `syncAdjustUI`, `readAdjustUI`, `resetAdjustUI`.
+- `start.js` — `renderPresets`, `openCustomPreset`, `projectCard`, `timeAgo`, `renderRecent`, `renderTemplates`, `paintTemplatePreviews`, `renderNott`.
+- `layers.js` — `renderLayers`, `startRename`, `syncLayerProps`.
+- `inspector.js` — `renderPalette`, `markSwatches`, `setColor`, `setBgColor`, `swapColors`, `resetColors`, `setFill`, `hslFromUI`.
+- `adjust-panel.js` — `adjustDefaults`, `syncAdjustUI`.
 - `menus.js` — `bindMenubar`, `openMenu`, `closeMenus`, `openPane`.
-- `modals.js` — export, size, transform, stroke, doc background, help.
+- `drawer.js` — `openDrawer`, `closeDrawer`, `openHelp`, `closeHelp`, `openIns`, `closeIns`.
+- `modals.js` — size, transform, stroke, màu nền canvas (mở/đóng + đọc form).
+- `hero.js` — `paintHero` (poster màn hình bắt đầu).
 - `feedback.js` — `toast`.
 
 ## May use
@@ -24,6 +25,11 @@
 Đã chuyển:
 - `feedback.js` — `toast` (P5-1).
 - `start.js` — `renderPresets`, `openCustomPreset`, `projectCard`, `timeAgo`, `renderRecent`, `renderTemplates`, `paintTemplatePreviews`, `renderNott` (P5-2). Hành động được **tiêm** qua `configure({ createProject, openProject, createTemplate, importNottImage, setColor, previewDoc, getState })`; dữ liệu `PRESETS`/`TEMPLATES` nằm ở `model/presets.js`.
+- `layers.js` — `renderLayers`, `startRename`, `syncLayerProps` (P5-3). Đổi lớp đi qua `configure({ select, selectContent, toggleVisible, rename, reorder, paintThumb })`.
+- `inspector.js` + `adjust-panel.js` — panel màu và đồng bộ adjust (P5-3).
+- `menus.js` + `drawer.js` — menubar/pane và ngăn kéo/trợ giúp (P5-4).
+- `modals.js` — mở/đóng size, transform, stroke, màu nền + `sizeState()`; `apply*` vẫn ở `app.js` vì cần pixel/history (P5-7).
+- `hero.js` — `paintHero` (P5-7).
 
 
 ## Cổng công khai
