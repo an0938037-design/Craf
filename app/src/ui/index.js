@@ -20,6 +20,8 @@ export {
 } from './inspector.js';
 export { adjustDefaults, syncAdjustUI } from './adjust-panel.js';
 export { configure as configureLayers, renderLayers, syncLayerProps } from './layers.js';
+export { closeMenus, openMenu, bindMenubar, openPane } from './menus.js';
+export { openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns } from './drawer.js';
 export {
   configure as configureStart,
   renderPresets,

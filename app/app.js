@@ -10,6 +10,8 @@ import {
   toast, configureStart, renderPresets, renderRecent, renderTemplates, paintTemplatePreviews, renderNott,
   configureLayers, renderLayers, setColor, setBgColor, swapColors, resetColors, renderPalette, setFill, hslFromUI,
   adjustDefaults, syncAdjustUI,
+  openMenu, closeMenus, bindMenubar, openPane,
+  openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
 } from './src/ui/index.js';
 
 (() => {
@@ -1648,72 +1650,15 @@ import {
     step();
   }
 
-  /* ------------------------------------------------------------------ drawer / help */
-  function openDrawer() {
-    closeIns();
-    $('#nottDrawer').hidden = false;
-    $('#scrim').hidden = false;
-    $('#btnDrawerSend').disabled = !state.doc;
-  }
-  function closeDrawer() {
-    $('#nottDrawer').hidden = true;
-    $('#scrim').hidden = true;
-  }
-  function openHelp() { $('#helpModal').hidden = false; }
-  function closeHelp() { $('#helpModal').hidden = true; }
+  /* Ngăn kéo Nott + trợ giúp → ui/drawer.js. */
 
   /* ------------------------------------------------------------------ commands / menubar */
-  function closeMenus() {
-    $$('.menu.open').forEach((m) => {
-      m.classList.remove('open');
-      const b = m.querySelector('.menu-btn');
-      if (b) b.setAttribute('aria-expanded', 'false');
+  /* Menubar + chuyển pane → ui/menus.js; ở đây gom hook cho pane. */
+  function openPaneUI(name) {
+    openPane(name, {
+      onAdjust: () => { ensureAdjust(); syncAdjustUI(); },
+      onMobile: openIns,
     });
-  }
-
-  function openMenu(m) {
-    closeMenus();
-    if (!m) return;
-    m.classList.add('open');
-    const b = m.querySelector('.menu-btn');
-    if (b) b.setAttribute('aria-expanded', 'true');
-  }
-
-  function bindMenubar() {
-    const bar = $('#menubar');
-    bar.addEventListener('click', (e) => {
-      const btn = e.target.closest('.menu-btn');
-      if (btn) {
-        const menu = btn.parentElement;
-        if (menu.classList.contains('open')) closeMenus();
-        else openMenu(menu);
-        return;
-      }
-      const cmd = e.target.closest('[data-cmd]');
-      if (!cmd) return;
-      closeMenus();
-      runCommand(cmd.dataset.cmd);
-    });
-    $$('.menu').forEach((m) => {
-      m.addEventListener('pointerenter', () => {
-        if ($('.menu.open') && !m.classList.contains('open')) openMenu(m);
-      });
-    });
-    document.addEventListener('pointerdown', (e) => {
-      if (!e.target.closest('#menubar')) closeMenus();
-    });
-  }
-
-  function openPane(name) {
-    $$('.ins-tab').forEach((t) => t.classList.toggle('active', t.dataset.pane === name));
-    $('#paneColor').hidden = name !== 'color';
-    $('#paneAdjust').hidden = name !== 'adjust';
-    $('#paneLayers').hidden = name !== 'layers';
-    if (name === 'adjust') {
-      ensureAdjust();
-      syncAdjustUI();
-    }
-    if (window.matchMedia('(max-width: 760px)').matches) openIns();
   }
 
   function runCommand(name) {
@@ -1766,7 +1711,7 @@ import {
       case 'filterGrain': applyFilter('grain', 'Đã phủ hạt phim'); break;
       case 'filterGray': applyFilter('gray', 'Đã chuyển trắng đen'); break;
       case 'filterSepia': applyFilter('sepia', 'Đã phủ nâu cổ'); break;
-      case 'adjustPane': openPane('adjust'); break;
+      case 'adjustPane': openPaneUI('adjust'); break;
       default: break;
     }
   }
@@ -1873,16 +1818,6 @@ import {
     } catch { /* ignore */ }
   }
 
-  function openIns() {
-    document.body.classList.add('ins-open');
-    $('#insScrim').hidden = false;
-  }
-
-  function closeIns() {
-    document.body.classList.remove('ins-open');
-    $('#insScrim').hidden = true;
-  }
-
   function bind() {
     $('#btnStart').addEventListener('click', () => createProject('Poster ' + new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }), 1080, 1350));
     $('#btnBrowse').addEventListener('click', () => $('#shelfPresets').scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -1914,13 +1849,13 @@ import {
         document.body.classList.contains('ins-open') ? closeIns() : openIns();
         return;
       }
-      openPane('color');
+      openPaneUI('color');
     });
     $('#btnInsClose').addEventListener('click', closeIns);
     $('#insScrim').addEventListener('click', closeIns);
 
     $$('.ins-tab').forEach((tab) => tab.addEventListener('click', () => {
-      openPane(tab.dataset.pane);
+      openPaneUI(tab.dataset.pane);
     }));
 
     $('#btnLayerAdd').addEventListener('click', addLayer);
@@ -2072,7 +2007,7 @@ import {
       $('#btnGrid').style.color = state.guides ? 'var(--signal)' : '';
     });
 
-    bindMenubar();
+    bindMenubar(runCommand);
     bindGuides();
     bindDropImport();
 
