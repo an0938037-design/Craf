@@ -13,7 +13,7 @@ import {
   openMenu, closeMenus, bindMenubar, openPane,
   openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
 } from './src/ui/index.js';
-import { createCommands } from './src/shell/index.js';
+import { createCommands, bindKeymap } from './src/shell/index.js';
 import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './src/shell/index.js';
 
 (() => {
@@ -1870,69 +1870,43 @@ import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExp
     bindDropImport();
 
     window.addEventListener('resize', () => { if (state.fitMode) fit(); else { applyView(); } });
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('keyup', (e) => {
-      if (e.code === 'Space') {
-        state.space = false;
-        $('#stage').style.cursor = '';
-        if (overlay.style.cursor === 'grab') overlay.style.cursor = state.tool === 'brush' ? 'none' : 'crosshair';
-      }
+    bindKeymap({
+      getState: () => state,
+      closeMenus,
+      closeHelp,
+      closeDrawer,
+      closeIns,
+      closeSizeModal,
+      closeTransformModal,
+      closeStrokeModal,
+      clearSelection,
+      requestAnts,
+      addLayer,
+      openSizeModal,
+      selectAll,
+      copySelection,
+      pasteClipboard,
+      duplicateLayer,
+      openTransformModal,
+      mergeAll,
+      mergeDown,
+      invertSelection,
+      applyFilter,
+      undo,
+      redo,
+      saveNow,
+      openExport,
+      fillSelected,
+      clearSelectedContent,
+      syncSizeUI,
+      fit,
+      setZoom,
+      openHelp,
+      swapColors,
+      resetColors,
+      setTool,
     });
     document.addEventListener('beforeunload', () => { if (state.doc && state.dirty) saveNow(); });
-  }
-
-  function onKey(e) {
-    const typing = e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-    const mod = e.ctrlKey || e.metaKey;
-    const k = e.key.toLowerCase();
-    if (e.key === 'Escape') {
-      if ($('.menu.open')) { closeMenus(); return; }
-      if (!$('#helpModal').hidden) { closeHelp(); return; }
-      if (!$('#sizeModal').hidden) { closeSizeModal(); return; }
-      if (!$('#transformModal').hidden) { closeTransformModal(); return; }
-      if (!$('#strokeModal').hidden) { closeStrokeModal(); return; }
-      if (!$('#exportModal').hidden) { $('#exportModal').hidden = true; return; }
-      if (!$('#nottDrawer').hidden) { closeDrawer(); return; }
-      if (document.body.classList.contains('ins-open')) { closeIns(); return; }
-      if (state.selPreview) { state.selPreview = null; state.draw = null; requestAnts(); return; }
-      if (state.sel.active) { clearSelection(); return; }
-    }
-    if (!$('#helpModal').hidden || !$('#sizeModal').hidden || !$('#transformModal').hidden || !$('#strokeModal').hidden || !$('#exportModal').hidden) return;
-    if (typing) return;
-    if (mod && e.shiftKey && k === 'n') { e.preventDefault(); addLayer(); return; }
-    if (mod && k === 'n') { e.preventDefault(); openSizeModal('new'); return; }
-    if (mod && k === 'a') { e.preventDefault(); selectAll(); return; }
-    if (mod && k === 'd') { e.preventDefault(); clearSelection(); return; }
-    if (mod && k === 'c') { e.preventDefault(); copySelection(false); return; }
-    if (mod && k === 'x') { e.preventDefault(); copySelection(true); return; }
-    if (mod && k === 'v') { if (state.clipboard) { e.preventDefault(); pasteClipboard(); } return; }
-    if (mod && k === 'j') { e.preventDefault(); duplicateLayer(); return; }
-    if (mod && k === 't') { e.preventDefault(); openTransformModal(); return; }
-    if (mod && e.shiftKey && k === 'm') { e.preventDefault(); mergeAll(); return; }
-    if (mod && k === 'm') { e.preventDefault(); mergeDown(); return; }
-    if (mod && e.shiftKey && k === 'i') { e.preventDefault(); invertSelection(); return; }
-    if (mod && k === 'i') { e.preventDefault(); applyFilter('invert', 'Đã đảo màu lớp'); return; }
-    if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
-    if (mod && k === 'y') { e.preventDefault(); redo(); return; }
-    if (mod && k === 's') { e.preventDefault(); saveNow(); return; }
-    if (mod && k === 'e') { e.preventDefault(); openExport(); return; }
-    if (mod && k === 'g') { e.preventDefault(); $('#btnGrid').click(); return; }
-    if (e.altKey && e.key === 'Backspace') { e.preventDefault(); fillSelected(); return; }
-    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); clearSelectedContent(); return; }
-    if (e.code === 'Space') { e.preventDefault(); state.space = true; if (state.doc) overlay.style.cursor = 'grab'; return; }
-    if (e.key === '[') { state.size = clamp(state.size - (state.size > 30 ? 6 : 2), 1, 180); syncSizeUI(); return; }
-    if (e.key === ']') { state.size = clamp(state.size + (state.size > 30 ? 6 : 2), 1, 180); syncSizeUI(); return; }
-    if (e.key === '0') { fit(); return; }
-    if (e.key === '1') { setZoom(1); return; }
-    if (e.key === '?') { openHelp(); return; }
-    if (!state.doc) return;
-    if (k === 'x') { swapColors(); return; }
-    if (k === 'd') { resetColors(); return; }
-    const map = {
-      b: 'brush', e: 'eraser', l: 'line', r: 'rect', o: 'ellipse', g: 'fill',
-      i: 'pick', t: 'text', h: 'hand', v: 'move', m: 'marquee', q: 'lasso', w: 'wand', u: 'gradient',
-    };
-    if (map[k]) setTool(map[k]);
   }
 
   function boot() {

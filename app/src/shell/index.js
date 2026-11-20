@@ -18,3 +18,4 @@ export {
   refreshNott,
 } from './storage.js';
 export { createCommands } from './commands.js';
+export { createKeyHandler, bindKeymap } from './keymap.js';
