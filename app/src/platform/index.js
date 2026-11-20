@@ -8,3 +8,4 @@
  */
 
 export { $, $$, dpr, loadImage } from './dom.js';
+export { pathFromCommands } from './path2d.js';
