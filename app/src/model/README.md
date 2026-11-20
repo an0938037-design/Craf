@@ -1,9 +1,9 @@
 # `model/` — dữ liệu và bất biến
 
 ## Owns
-- `store.js` — `state` hiện tại thành store có `get`, `set`, `subscribe`. Thay 570 chỗ đọc `state.` trực tiếp.
-- `doc.js` — `createProject`, `openDoc`, `activeLayer`, `sheetSize`.
-- `layers.js` — `newLayer`, `copyCanvas`, `replaceLayerImage`, `uniqueName`, `mergeDown`, `flattenLayers`, `mergeAll`.
+- `store.js` — `state` + `get/set/subscribe` (facade P2-1, thay dần 570 chỗ đọc `state.` trực tiếp).
+- `doc.js` — `sheetSize`, `activeLayer`, `uniqueProjectName`, `newDocData`, `activate` (P2-2).
+- `layers.js` — `layerMeta` (metadata thuần; canvas nằm ở `pixel/layers.js`) (P2-3).
 - `history.js` — `snapshotDoc`, `pushDocHistory`, `pushLayerHistory`, `pushLayerSnapshot`, `syncHistoryButtons`.
 - `serialize.js` — đọc/ghi `.craf` JSON, version field.
 - `presets.js` — `PRESETS`, `CRAF_SWATCHES`, `TEMPLATES` (dữ liệu, không render).

@@ -2,7 +2,7 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas } from './src/pixel/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers } from './src/pixel/index.js';
 import { selection, state, sheetSize, activeLayer, uniqueProjectName, newDocData, activate } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
 
@@ -246,23 +246,6 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     return c;
-  }
-
-  function newLayer(w, h, name = 'Lớp') {
-    const canvas = makeCanvas(w, h);
-    return { id: uid(), name, visible: true, opacity: 100, blend: 'source-over', canvas, ctx: canvas.getContext('2d') };
-  }
-
-  function copyCanvas(src) {
-    const c = makeCanvas(src.width, src.height);
-    c.getContext('2d').drawImage(src, 0, 0);
-    return c;
-  }
-
-  function replaceLayerImage(layer, w, h) {
-    const canvas = makeCanvas(w, h);
-    layer.canvas = canvas;
-    layer.ctx = canvas.getContext('2d');
   }
 
   function createProject(name, w, h, seed) {
@@ -757,37 +740,18 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     pushDocHistory();
     const up = state.doc.layers[state.active];
     const low = state.doc.layers[state.active - 1];
-    low.ctx.save();
-    low.ctx.globalAlpha = up.opacity / 100;
-    low.ctx.globalCompositeOperation = up.blend || 'source-over';
-    low.ctx.drawImage(up.canvas, 0, 0);
-    low.ctx.restore();
+    mergeLayerInto(low, up);
     state.doc.layers.splice(state.active, 1);
     state.active -= 1;
     renderLayers(); render(); markDirty();
     toast('Đã gộp xuống “' + low.name + '”', 'ok', 2000);
   }
 
-  function flattenLayers() {
-    const { w, h } = state.doc;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
-    for (const l of state.doc.layers) {
-      if (!l.visible || l.opacity <= 0) continue;
-      g.globalAlpha = l.opacity / 100;
-      g.globalCompositeOperation = l.blend || 'source-over';
-      g.drawImage(l.canvas, 0, 0);
-    }
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = 'source-over';
-    return c;
-  }
-
   function mergeAll() {
     if (!state.doc) return;
     finishAdjust();
     pushDocHistory();
-    const flat = flattenLayers();
+    const flat = flattenLayers(state.doc.layers, state.doc.w, state.doc.h);
     const l = newLayer(state.doc.w, state.doc.h, 'Hợp nhất');
     l.ctx.drawImage(flat, 0, 0);
     state.doc.layers = [l];

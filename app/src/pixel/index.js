@@ -6,6 +6,7 @@
  */
 
 export { maskFromCanvas, maskToCanvas, maskFromPolygon, maskFromLayerAlpha, maskFromWand, maskTranslate, maskExtract, compositeSample } from './mask.js';
+export { createLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers } from './layers.js';
 export { wandMask } from './wand.js';
 export { floodFillLayer } from './fill.js';
 export { strokePath, fillPath, clearPath } from './stroke.js';

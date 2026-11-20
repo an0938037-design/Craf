@@ -10,3 +10,4 @@
 export * as selection from './selection.js';
 export { state, get, set, subscribe, emit } from './store.js';
 export { sheetSize, activeLayer, uniqueProjectName, newDocData, activate } from './doc.js';
+export { layerMeta } from './layers.js';
