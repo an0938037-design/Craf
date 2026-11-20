@@ -2,9 +2,9 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskInvert } from './src/core/index.js';
-import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL, jpegDataURL } from './src/pixel/index.js';
-import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from './src/model/index.js';
-import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
+import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from './src/pixel/index.js';
+import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from './src/model/index.js';
+import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from './src/tools/index.js';
 import {
   toast, configureStart, renderPresets, renderRecent, renderTemplates, paintTemplatePreviews, renderNott,
@@ -13,6 +13,7 @@ import {
   openMenu, closeMenus, bindMenubar, openPane,
   openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
 } from './src/ui/index.js';
+import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './src/shell/index.js';
 
 (() => {
   'use strict';
@@ -20,16 +21,6 @@ import {
   /* ------------------------------------------------------------------ utils */
   /* Đã tách sang section: $ $$ dpr loadImage → src/platform · clamp esc fmt pad uid
      → src/shared · hex/rgb/hsl → src/core/color.js · bezierPoints → src/core/geometry.js */
-
-  async function api(path, body) {
-    const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
-    const res = await fetch(path, opts);
-    const text = await res.text();
-    let data = null;
-    try { data = JSON.parse(text); } catch { /* not json */ }
-    if (!res.ok) throw new Error((data && data.error) || text || res.statusText);
-    return data || {};
-  }
 
   /* ------------------------------------------------------------------ state */
   const PRESETS = [
@@ -578,114 +569,7 @@ import {
     $('#btnRedo').disabled = !canRedo();
   }
 
-  function markDirty() {
-    state.dirty = true;
-    setSaveState('dirty');
-    clearTimeout(state.saveTimer);
-    state.saveTimer = setTimeout(saveNow, 1000);
-  }
-
-  function setSaveState(kind) {
-    const el = $('#saveState');
-    const span = el.querySelector('span');
-    el.classList.remove('dirty', 'saving');
-    if (kind === 'dirty') { el.classList.add('dirty'); span.textContent = 'Chưa lưu'; }
-    else if (kind === 'saving') { el.classList.add('saving'); span.textContent = 'Đang lưu…'; }
-    else {
-      const t = new Date();
-      span.textContent = 'Đã lưu · ' + pad(t.getHours()) + ':' + pad(t.getMinutes());
-    }
-    el.title = span.textContent;
-  }
-
-  /* ------------------------------------------------------------------ save / export / nott */
-  function compositeCanvas(w, h, transparent = false) {
-    return compositeDoc(state.doc, w, h, transparent);
-  }
-
-  function thumbData() {
-    const w = Math.min(480, state.doc.w);
-    const h = Math.round(w * state.doc.h / state.doc.w);
-    return jpegDataURL(compositeCanvas(w, h), 0.84);
-  }
-
-  async function saveNow() {
-    clearTimeout(state.saveTimer);
-    if (!state.doc || state.saving) return;
-    state.saving = true;
-    setSaveState('saving');
-    const doc = state.doc;
-    const payload = toPayload(doc, (l) => pngDataURL(l.canvas), thumbData());
-    try {
-      const res = await api('/api/projects', payload);
-      state.dirty = false;
-      const entry = {
-        id: doc.id, name: doc.name, w: doc.w, h: doc.h,
-        updatedAt: res.updatedAt || Date.now(), thumb: `/library/${doc.id}.jpg`,
-      };
-      const ix = state.projects.findIndex((p) => p.id === doc.id);
-      if (ix >= 0) state.projects[ix] = entry; else state.projects.unshift(entry);
-      state.projects.sort((a, b) => b.updatedAt - a.updatedAt);
-      setSaveState('saved');
-      renderRecent();
-    } catch (err) {
-      setSaveState('dirty');
-      toast('Không lưu được: ' + err.message, 'err');
-    } finally {
-      state.saving = false;
-    }
-  }
-
-  function openExport() {
-    if (!state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
-    $('#exportName').value = (state.doc.name || 'craf').replace(/[\\/:*?"<>|]+/g, '').trim() || 'craf';
-    $('#exportModal').hidden = false;
-    updateExportInfo();
-    $('#exportName').focus();
-    $('#exportName').select();
-  }
-
-  function exportDims() {
-    const scale = parseFloat($('#exportScale').value) || 1;
-    return { w: Math.max(1, Math.round(state.doc.w * scale)), h: Math.max(1, Math.round(state.doc.h * scale)), scale };
-  }
-
-  function updateExportInfo() {
-    if (!state.doc) return;
-    const fmt = $('#exportFormat').value;
-    const { w, h, scale } = exportDims();
-    const lossy = fmt !== 'png';
-    $('#exportQualityRow').hidden = !lossy;
-    const alpha = $('#exportAlpha');
-    alpha.disabled = fmt === 'jpeg';
-    if (fmt === 'jpeg') alpha.checked = false;
-    else if (!alpha.disabled && !state.dirty && alpha.dataset.touched !== '1') alpha.checked = true;
-    const size = fmt === 'png' ? 'PNG · nền trong suốt' : (fmt === 'jpeg' ? 'JPEG · nền giấy' : 'WebP');
-    $('#exportInfo').textContent = `${w} × ${h} px · ${Math.round(scale * 100)}% · ${size}`;
-    $('#exportAlphaRow').style.opacity = fmt === 'jpeg' ? '0.4' : '1';
-  }
-
-  function runExport() {
-    if (!state.doc) return;
-    try {
-      const fmt = $('#exportFormat').value;
-      const mime = fmt === 'jpeg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
-      const ext = fmt === 'jpeg' ? 'jpg' : fmt;
-      const { w, h } = exportDims();
-      const transparent = fmt !== 'jpeg' && $('#exportAlpha').checked;
-      const c = compositeCanvas(w, h, transparent);
-      const q = clamp(parseInt($('#exportQuality').value, 10) / 100, 0.4, 1);
-      const name = ($('#exportName').value || state.doc.name || 'craf').replace(/[\\/:*?"<>|]+/g, '').trim() || 'craf';
-      const a = document.createElement('a');
-      a.download = name + '.' + ext;
-      a.href = c.toDataURL(mime, q);
-      a.click();
-      $('#exportModal').hidden = true;
-      toast('Đã xuất ' + fmt.toUpperCase() + ' · ' + w + ' × ' + h);
-    } catch (err) {
-      toast('Xuất thất bại: ' + err.message, 'err');
-    }
-  }
+  /* Lưu + xuất ảnh → shell/storage.js. */
 
   async function sendToNott() {
     if (!state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
@@ -1798,26 +1682,6 @@ import {
 
 
   /* ------------------------------------------------------------------ bootstrap / bind */
-  async function refresh() {
-    try {
-      const data = await api('/api/bootstrap');
-      state.projects = data.projects || [];
-      state.nott = data.nott || { ok: false };
-    } catch (err) {
-      state.nott = { ok: false, root: '' };
-      toast('Không đọc được thư viện: ' + err.message, 'err');
-    }
-    renderRecent();
-    renderNott();
-  }
-
-  async function refreshNott() {
-    try {
-      state.nott = await api('/api/nott');
-      renderNott();
-    } catch { /* ignore */ }
-  }
-
   function bind() {
     $('#btnStart').addEventListener('click', () => createProject('Poster ' + new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }), 1080, 1350));
     $('#btnBrowse').addEventListener('click', () => $('#shelfPresets').scrollIntoView({ behavior: 'smooth', block: 'start' }));

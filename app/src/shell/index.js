@@ -1,11 +1,19 @@
 /**
- * Cổng công khai của section `shell`.
+ * Cổng công khai của section `shell` — composition root.
  *
- * Chỉ export qua file này. Section khác không được import file nội bộ.
- * Hợp đồng Owns / May use / Must not: xem ./README.md
- *
- * Placeholder — chưa có mã nguồn. Implementer điền ở giai đoạn 5
- * (docs/plan-chuyen-module.md). Đây là điểm vào duy nhất sẽ được
- * index.html import khi app.js bị xoá.
+ * `shell` được dùng mọi section khác; không section nào được import ngược vào
+ * `shell`. Hiện đã có cầu lưu trữ; boot/keymap/commands sẽ chuyển tiếp ở P5-5…P6.
  */
-export {};
+export {
+  api,
+  markDirty,
+  setSaveState,
+  saveNow,
+  compositeCanvas,
+  openExport,
+  exportDims,
+  updateExportInfo,
+  runExport,
+  refresh,
+  refreshNott,
+} from './storage.js';
