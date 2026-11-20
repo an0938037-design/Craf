@@ -22,11 +22,11 @@ trong kế hoạch này. Mục tiêu duy nhất: **cùng một hành vi, khác r
 |---|---|---|
 | 0 — khung | ✅ xong | `03b3e72`, `d115640` |
 | 1 — platform / shared / core | ✅ xong | `e25522a`, `9218942`, `8fd6eab`, `969a5b5` |
-| 2 — model/store | 🔄 C4 xong (mask), store chưa bắt đầu | `c76f855`, `9109c0b` |
-| 3 — pixel / render | 🔄 C3 xong (adapter), chưa nối | `300f04b`, `cfb8e8d` |
-| 4 — tools + bus | chưa bắt đầu | — |
-| 5 — ui / shell | chưa bắt đầu | — |
-| 6 — khoá lại | ✅ xong (P6-3: A12 chưa chạy lại, soft/fill đang đối chứng) | — |
+| 2 — model/store | ✅ xong (P2, gồm C4 mask) | `c76f855`, `9109c0b` |
+| 3 — pixel / render | ✅ xong (P3, gồm C5–C7) | `300f04b`, `cfb8e8d` |
+| 4 — tools + bus | ✅ xong (bus = `shared/emitter` + inject, không có `bus.js`) | — |
+| 5 — ui / shell | ✅ xong (P5-1…P5-9) | `a1c9e47`, `c6a43f3` |
+| 6 — khoá lại | ✅ xong (P6-1 xoá `app/app.js`, P6-2 cổng sạch, P6-3 baseline + A12 + soft/fill đã đối chứng) | `7af3250` |
 
 ### Tiến độ đổi biểu diễn mask (C0–C8, hợp đồng `docs/contracts/mask.md`)
 
