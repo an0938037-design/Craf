@@ -1,12 +1,16 @@
 /* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
-import { bezierPoints, maskAll, maskBounds, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl } from './src/core/index.js';
+import { bezierPoints, maskAll, maskBounds, maskInvert } from './src/core/index.js';
 import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL, jpegDataURL } from './src/pixel/index.js';
 import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, toPayload, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, compositeDoc, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from './src/tools/index.js';
-import { toast, configureStart, renderPresets, renderRecent, renderTemplates, paintTemplatePreviews, renderNott } from './src/ui/index.js';
+import {
+  toast, configureStart, renderPresets, renderRecent, renderTemplates, paintTemplatePreviews, renderNott,
+  configureLayers, renderLayers, setColor, setBgColor, swapColors, resetColors, renderPalette, setFill, hslFromUI,
+  adjustDefaults, syncAdjustUI,
+} from './src/ui/index.js';
 
 (() => {
   'use strict';
@@ -263,109 +267,35 @@ import { toast, configureStart, renderPresets, renderRecent, renderTemplates, pa
   }
 
   /* ------------------------------------------------------------------ layers UI */
-  function renderLayers() {
-    const doc = state.doc;
-    if (!doc) return;
-    const list = $('#layersList');
-    list.innerHTML = '';
-    for (let i = doc.layers.length - 1; i >= 0; i--) {
-      const l = doc.layers[i];
-      const row = document.createElement('div');
-      row.className = 'layer-row' + (i === state.active ? ' active' : '') + (l.visible ? '' : ' hidden-layer');
-      row.draggable = true;
-      row.dataset.index = String(i);
-      row.innerHTML = `<button class="layer-eye" type="button" title="${l.visible ? 'Ẩn lớp' : 'Hiện lớp'}"><svg class="ico"><use href="#${l.visible ? 'i-eye' : 'i-eye-off'}"/></svg></button>
-        <span class="layer-thumb"><canvas width="80" height="80"></canvas></span>
-        <span class="layer-name" title="${esc(l.note ? l.name + ' — ' + l.note : l.name)}">${esc(l.name)}</span>
-        <span class="layer-op mono">${l.opacity}</span>`;
-      const thumb = row.querySelector('canvas');
-      const tctx = thumb.getContext('2d');
-      const s = Math.min(80 / doc.w, 80 / doc.h);
-      tctx.drawImage(l.canvas, (80 - doc.w * s) / 2, (80 - doc.h * s) / 2, doc.w * s, doc.h * s);
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('.layer-eye') || e.target.closest('.layer-name-input')) return;
-        selectLayer(i);
-        if (e.ctrlKey || e.metaKey) selectLayerContent();
-      });
-      row.querySelector('.layer-eye').addEventListener('click', (e) => {
-        e.stopPropagation();
-        pushDocHistory();
-        l.visible = !l.visible;
-        renderLayers(); render(); markDirty();
-      });
-      row.querySelector('.layer-name').addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        startRename(row, i);
-      });
-      row.addEventListener('dragstart', (e) => {
-        if (e.target.closest('.layer-name-input')) { e.preventDefault(); return; }
-        state.dragIndex = i;
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        try { e.dataTransfer.setData('text/plain', String(i)); } catch { /* noop */ }
-      });
-      row.addEventListener('dragend', () => { row.classList.remove('dragging'); $$('.layer-row').forEach((r) => r.classList.remove('drop-target')); });
-      row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('drop-target'); });
-      row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
-      row.addEventListener('drop', (e) => {
-        e.preventDefault();
-        row.classList.remove('drop-target');
-        const from = state.dragIndex;
-        if (from == null || from === i) return;
-        pushDocHistory();
-        const moved = doc.layers.splice(from, 1)[0];
-        doc.layers.splice(i, 0, moved);
-        state.active = i;
-        renderLayers(); render(); markDirty();
-      });
-      list.appendChild(row);
-    }
-    $('#layerCount').textContent = String(doc.layers.length);
-    $('#statusLayer').textContent = `LỚP ${state.active + 1}/${doc.layers.length}`;
-    syncLayerProps();
-  }
+  /* Panel lớp đã sang ui/layers.js; ở đây tiêm command. */
+  configureLayers({
+    select: (i) => selectLayer(i),
+    selectContent: () => selectLayerContent(),
+    toggleVisible: (i) => {
+      pushDocHistory();
+      state.doc.layers[i].visible = !state.doc.layers[i].visible;
+      renderLayers(); render(); markDirty();
+    },
+    rename: (i, name) => {
+      pushDocHistory();
+      state.doc.layers[i].name = name;
+      markDirty();
+    },
+    reorder: (from, to) => {
+      pushDocHistory();
+      const moved = state.doc.layers.splice(from, 1)[0];
+      state.doc.layers.splice(to, 0, moved);
+      state.active = to;
+      renderLayers(); render(); markDirty();
+    },
+    paintThumb: (ctx, layer, doc, size) => drawLayerThumb(ctx, layer, doc, size),
+  });
 
   function selectLayer(i) {
     finishAdjust();
     state.active = clamp(i, 0, state.doc.layers.length - 1);
     renderLayers();
     syncAdjustUI();
-  }
-
-  function startRename(row, i) {
-    const nameEl = row.querySelector('.layer-name');
-    const input = document.createElement('input');
-    input.className = 'layer-name-input';
-    input.value = state.doc.layers[i].name;
-    nameEl.replaceWith(input);
-    input.focus();
-    input.select();
-    let settled = false;
-    const done = (save) => {
-      if (settled) return;
-      settled = true;
-      if (save) {
-        pushDocHistory();
-        state.doc.layers[i].name = input.value.trim() || 'Lớp';
-        markDirty();
-      }
-      renderLayers();
-    };
-    input.addEventListener('blur', () => done(true));
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-      if (e.key === 'Escape') { e.preventDefault(); done(false); }
-    });
-    input.addEventListener('click', (e) => e.stopPropagation());
-  }
-
-  function syncLayerProps() {
-    const l = activeLayer();
-    if (!l) return;
-    $('#layerBlend').value = l.blend;
-    $('#layerOpacity').value = String(l.opacity);
-    $('#layerOpacityVal').textContent = l.opacity + '%';
-    setFill($('#layerOpacity'), l.opacity);
   }
 
   function addLayer() {
@@ -438,44 +368,7 @@ import { toast, configureStart, renderPresets, renderRecent, renderTemplates, pa
   }
 
   /* ------------------------------------------------------------------ adjustments / filters */
-  function adjustDefaults() {
-    return { bright: 0, contrast: 0, saturate: 100, hue: 0, blur: 0, black: 0, white: 255, gamma: 100, gray: false, sepia: false, invert: false };
-  }
-
-  function syncAdjustUI() {
-    const v = state.adjust ? state.adjust.vals : adjustDefaults();
-    $('#adjBright').value = String(v.bright);
-    $('#adjContrast').value = String(v.contrast);
-    $('#adjSaturate').value = String(v.saturate);
-    $('#adjHue').value = String(v.hue);
-    $('#adjBlur').value = String(v.blur);
-    $('#adjBlack').value = String(v.black);
-    $('#adjWhite').value = String(v.white);
-    $('#adjGamma').value = String(v.gamma);
-    $('#adjBrightVal').textContent = String(v.bright);
-    $('#adjContrastVal').textContent = String(v.contrast);
-    $('#adjSaturateVal').textContent = String(v.saturate);
-    $('#adjHueVal').textContent = String(v.hue);
-    $('#adjBlurVal').textContent = String(v.blur);
-    $('#adjBlackVal').textContent = String(v.black);
-    $('#adjWhiteVal').textContent = String(v.white);
-    $('#adjGammaVal').textContent = (v.gamma / 100).toFixed(2);
-    setFill($('#adjBright'), (v.bright + 100) / 2);
-    setFill($('#adjContrast'), (v.contrast + 100) / 2);
-    setFill($('#adjSaturate'), v.saturate / 2);
-    setFill($('#adjHue'), v.hue / 3.6);
-    setFill($('#adjBlur'), (v.blur / 24) * 100);
-    setFill($('#adjBlack'), (v.black / 254) * 100);
-    setFill($('#adjWhite'), ((v.white - 1) / 254) * 100);
-    setFill($('#adjGamma'), ((v.gamma - 10) / 290) * 100);
-    const hint = $('#adjLevelsHint');
-    if (hint) hint.textContent = `${v.black} · ${v.white} · ${(v.gamma / 100).toFixed(2)}`;
-    $('#adjGray').checked = !!v.gray;
-    $('#adjSepia').checked = !!v.sepia;
-    $('#adjInvert').checked = !!v.invert;
-    const scope = $('#adjustScope');
-    if (scope) scope.textContent = state.sel.active ? 'trong vùng chọn' : 'toàn lớp';
-  }
+  /* adjustDefaults + syncAdjustUI → ui/adjust-panel.js. */
 
   function ensureAdjust() {
     const layer = activeLayer();
@@ -593,83 +486,7 @@ import { toast, configureStart, renderPresets, renderRecent, renderTemplates, pa
     toast(done || 'Đã áp dụng bộ lọc', 'ok', 1800);
   }
 
-  /* ------------------------------------------------------------------ palette / color */
-  function renderPalette() {
-    const box = $('#swatches');
-    box.innerHTML = CRAF_SWATCHES.map((hex) => `<button class="swatch" type="button" data-hex="${hex}" title="${hex}" style="background:${hex}"></button>`).join('');
-    $$('.swatch', box).forEach((el) => el.addEventListener('click', () => setColor(el.dataset.hex)));
-    markSwatches();
-  }
-
-  function markSwatches() {
-    const cur = state.color.toUpperCase();
-    $$('.swatch').forEach((el) => el.classList.toggle('active', (el.dataset.hex || '').toUpperCase() === cur));
-  }
-
-  function setBgColor(hex) {
-    const clean = '#' + String(hex).replace('#', '').slice(0, 6).toUpperCase();
-    state.bgColor = clean;
-    const el = $('#bgSwatch');
-    if (el) el.style.background = clean;
-  }
-
-  function swapColors() {
-    const prev = state.bgColor;
-    setBgColor(state.color);
-    setColor(prev);
-    toast('Đổi màu trước / sau', 'ok', 1200);
-  }
-
-  function resetColors() {
-    setColor('#16130E');
-    setBgColor('#FDFAF3');
-  }
-
-  function setColor(hex, fromPicker = false) {
-    const clean = '#' + String(hex).replace('#', '').slice(0, 6).toUpperCase();
-    state.color = clean;
-    const { h, s, l } = hexToHsl(clean);
-    if (!fromPicker) {
-      $('#hue').value = String(Math.round(h));
-      $('#sat').value = String(Math.round(s));
-      $('#lig').value = String(Math.round(l));
-      $('#hueVal').textContent = String(Math.round(h));
-      $('#satVal').textContent = String(Math.round(s));
-      $('#ligVal').textContent = String(Math.round(l));
-      setFill($('#hue'), h / 3.6);
-      setFill($('#sat'), s);
-      setFill($('#lig'), l);
-    }
-    const rgb = hexToRgb(clean);
-    const hsl = `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`;
-    $('#hexInput').value = clean.slice(1);
-    $('#bigSwatch').style.background = clean;
-    $('#inkwellDot').style.background = clean;
-    $('#sizeDot').style.background = clean;
-    $('#sizePreview').style.background = rgbToHsl(rgb.r, rgb.g, rgb.b).l > 70 ? 'rgba(10,10,11,.06)' : 'var(--desk-2)';
-    $('#sat').style.setProperty('--c-hue', hsl);
-    $('#lig').style.setProperty('--c-hue', hsl);
-    document.documentElement.style.setProperty('--c-hue', hsl);
-    markSwatches();
-  }
-
-  function setFill(input, pct) {
-    if (!input) return;
-    input.style.setProperty('--fill', clamp(pct, 0, 100) + '%');
-  }
-
-  function hslFromUI() {
-    const h = parseInt($('#hue').value, 10);
-    const s = parseInt($('#sat').value, 10);
-    const l = parseInt($('#lig').value, 10);
-    $('#hueVal').textContent = h;
-    $('#satVal').textContent = s;
-    $('#ligVal').textContent = l;
-    setFill($('#hue'), h / 3.6);
-    setFill($('#sat'), s);
-    setFill($('#lig'), l);
-    setColor(hslToHex(h, s, l), true);
-  }
+  /* Panel màu đã sang ui/inspector.js. */
 
   /* ------------------------------------------------------------------ history */
   function snapshotDoc() {

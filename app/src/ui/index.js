@@ -9,6 +9,18 @@
  */
 export { toast } from './feedback.js';
 export {
+  renderPalette,
+  markSwatches,
+  setBgColor,
+  swapColors,
+  resetColors,
+  setColor,
+  setFill,
+  hslFromUI,
+} from './inspector.js';
+export { adjustDefaults, syncAdjustUI } from './adjust-panel.js';
+export { configure as configureLayers, renderLayers, syncLayerProps } from './layers.js';
+export {
   configure as configureStart,
   renderPresets,
   openCustomPreset,
