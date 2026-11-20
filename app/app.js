@@ -2,7 +2,7 @@
 import { $, $$, dpr, loadImage, pathFromCommands } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, maskSegments, segmentsToCommands, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
-import { maskToCanvas, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
 import { selection } from './src/model/index.js';
 
 (() => {
@@ -1635,13 +1635,8 @@ import { selection } from './src/model/index.js';
       toast(cut ? 'Đã cắt toàn lớp' : 'Đã sao chép toàn lớp', 'ok', 1600);
       return;
     }
-    const b = state.sel.bbox;
-    const tmp = makeCanvas(b.w, b.h);
-    const g = tmp.getContext('2d');
-    g.drawImage(layer.canvas, -b.x, -b.y);
-    g.globalCompositeOperation = 'destination-in';
-    g.drawImage(state.sel.mask, -b.x, -b.y);
-    state.clipboard = { canvas: tmp, x: b.x, y: b.y };
+    const ex = maskExtract(layer.canvas, selection.get());
+    state.clipboard = { canvas: ex.canvas, x: ex.x, y: ex.y };
     if (cut) {
       pushLayerHistory();
       layer.ctx.save();
@@ -2020,7 +2015,8 @@ import { selection } from './src/model/index.js';
       picked = copyCanvas(layer.canvas);
       const pg = picked.getContext('2d');
       pg.globalCompositeOperation = 'destination-in';
-      pg.drawImage(state.sel.mask, 0, 0);
+      const mk = maskToCanvas(state.sel.data, state.doc.w, state.doc.h, state.sel.bbox).canvas;
+      pg.drawImage(mk, state.sel.bbox.x, state.sel.bbox.y);
       pg.globalCompositeOperation = 'source-over';
     }
     state.draw = {
@@ -2210,8 +2206,8 @@ import { selection } from './src/model/index.js';
     const tol = 44;
     const tr = target & 255, tg = (target >>> 8) & 255, tb = (target >>> 16) & 255, ta = (target >>> 24) & 255;
     let selData = null;
-    if (state.sel.active) selData = state.sel.mask.getContext('2d').getImageData(0, 0, w, h).data;
-    const allowed = (p) => !selData || selData[p * 4 + 3] > 127;
+    if (state.sel.active) selData = state.sel.data;
+    const allowed = (p) => !selData || selData[p] > 127;
     if (!allowed(idx)) return;
     const near = (v) => {
       const a = (v >>> 24) & 255;
