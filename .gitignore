@@ -1,0 +1,9 @@
+# Craf — rác cục bộ, không commit
+.cache/
+__pycache__/
+*.py[cod]
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store
+node_modules/

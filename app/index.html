@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Craf — bàn vẽ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B0B0C'/%3E%3Cpath d='M8 22 22 8' stroke='%23FF4D24' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M8 8h7M8 8v7M24 24h-7M24 24v-7' stroke='%23F4EFE5' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/app/style.css" />
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-brush" viewBox="0 0 24 24"><path d="M5 19c1.8.3 3.9-.2 5-1.4 1.2-1.3 1.2-3.1 0-4.3-1.2-1.2-3-1.2-4.3 0C4.5 14.5 4.3 17 5 19Z"/><path d="M9.4 12.6 19.8 4.4c.6-.5 1.5.3 1 1L12.6 15.4"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 19.5 4 15a2 2 0 0 1 0-2.8l6.7-6.7a2 2 0 0 1 2.8 0l4.3 4.3a2 2 0 0 1 0 2.8l-5.5 5.5a2 2 0 0 1-2.8 0Z"/><path d="M8 10.6 15.4 18M9 19.5h10"/></symbol>
+    <symbol id="i-line" viewBox="0 0 24 24"><path d="M5 19 19 5"/></symbol>
+    <symbol id="i-rect" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1.4"/></symbol>
+    <symbol id="i-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8.2" ry="6.4"/></symbol>
+    <symbol id="i-fill" viewBox="0 0 24 24"><path d="M6.5 11.5 12 6l6.2 6.2c.6.6.6 1.5 0 2.1l-3.4 3.4a2 2 0 0 1-2.8 0l-5.5-5.5a.6.6 0 0 1 0-.7Z"/><path d="m9.5 4 1.6 1.6M19 14.5c.9 1.3 1.4 2.2 1.4 3a1.4 1.4 0 0 1-2.8 0c0-.8.5-1.7 1.4-3Z"/></symbol>
+    <symbol id="i-pick" viewBox="0 0 24 24"><path d="m14.8 5.6 3.6 3.6M6 18l1-4.2 7.5-7.5a1.4 1.4 0 0 1 2 0l1.2 1.2a1.4 1.4 0 0 1 0 2L10.2 17 6 18Z"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8.5 11V6.8a1.6 1.6 0 0 1 3.2 0V11m0-1.2a1.6 1.6 0 0 1 3.2 0V12m0-1a1.6 1.6 0 0 1 3.2 0v4.2c0 3-2.4 5.3-5.4 5.3h-1.2a5 5 0 0 1-3.7-1.7l-3-3.4a1.6 1.6 0 0 1 2.3-2.2L8.5 14"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4.5 12H14a5.5 5.5 0 0 1 0 11h-2"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M19.5 12H10a5.5 5.5 0 0 0 0 11h2"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.8 12S6 6.5 12 6.5 21.2 12 21.2 12 18 17.5 12 17.5 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16M9.9 7.1A9.9 9.9 0 0 1 12 6.5c6 0 9.2 5.5 9.2 5.5a17 17 0 0 1-2.4 3.1M6 8.2A16 16 0 0 0 2.8 12S6 17.5 12 17.5c1 0 1.9-.2 2.7-.5"/><path d="M10.1 10.2a2.6 2.6 0 0 0 3.6 3.6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5M14 11v5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12.5 9 5 9-5M3 16.5l9 5 9-5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10M8 10.5l4 4 4-4M4 18.5h16"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M10 7l-5 5 5 5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2.5h8.5A1.5 1.5 0 0 1 21 10v7.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5Z"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M20 4 3.5 10.4l7.1 2.6 2.5 7.1L20 4Z"/><path d="m10.6 13 4.6-4.6"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.2"/><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="1.6"/><circle cx="9" cy="10" r="1.6"/><path d="m4 16 4.7-4.2a1.5 1.5 0 0 1 2 0L14 15l1.6-1.4a1.5 1.5 0 0 1 2 0L20.5 16"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.6 2.1c-.8.5-1.3 1-1.3 1.9"/><path d="M12 16.6h.01"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.5" cy="15.5" r="4"/><path d="m11.4 12.6 8-8M16 4l3.5 3.5M14 6.3l2.4 2.4"/></symbol>
+    <symbol id="i-crop" viewBox="0 0 24 24"><path d="M7 3v14a1 1 0 0 0 1 1h13M3 7h14a1 1 0 0 1 1 1v13"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v5M12 16v5M3 12h5M16 12h5M6.3 6.3l3 3M14.7 14.7l3 3M17.7 6.3l-3 3M9.3 14.7l-3 3"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-2.6 2.6M12 3l2.6 2.6M12 21l-2.6-2.6M12 21l2.6-2.6M3 12l2.6-2.6M3 12l2.6 2.6M21 12l-2.6-2.6M21 12l-2.6 2.6"/></symbol>
+    <symbol id="i-marquee" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M10 4h4M20 10v4M14 20h-4M4 14v-4"/></symbol>
+    <symbol id="i-lasso" viewBox="0 0 24 24"><path d="M12 4c4.4 0 8 2.6 8 5.9 0 3.2-3.6 5.8-8 5.8S4 13.1 4 9.9C4 6.6 7.6 4 12 4Z"/><path d="M8.6 15.3c-.8 1.4-.9 3 .2 3.9 1.2 1 3.1.4 3.6-1 .5-1.4-.6-2.8-2-2.9"/></symbol>
+    <symbol id="i-wand" viewBox="0 0 24 24"><path d="m5 19 9.4-9.4M12.8 5.2 14 3l1.2 2.2L17.4 6l-2.2 1.2L14 9.4l-1.2-2.2L10.6 6ZM19 11.4l.7 1.3 1.3.7-1.3.7-.7 1.3-.7-1.3-1.3-.7 1.3-.7Z"/><path d="m16.7 12.8-2-2"/></symbol>
+    <symbol id="i-gradient" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1.4"/><path d="M4 16.5 20 8" opacity=".6"/><path d="M4 19 20 11.5" opacity=".35"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4v13a2 2 0 0 0 2 2h6M7 4l-2.5 2.5M7 4l2.5 2.5M17 20V7a2 2 0 0 0-2-2H9M17 20l-2.5-2.5M17 20l2.5-2.5"/></symbol>
+    <symbol id="i-merge" viewBox="0 0 24 24"><path d="m12 3 7 3.8-7 3.8-7-3.8L12 3Z"/><path d="M5 12.6 12 16l7-3.4M12 16v5M9.5 18.5 12 21l2.5-2.5"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V4M8.5 7.5 12 4l3.5 3.5"/><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></symbol>
+    <symbol id="i-image-plus" viewBox="0 0 24 24"><rect x="3.5" y="5" width="13" height="14" rx="1.6"/><circle cx="8" cy="10" r="1.4"/><path d="m4 16 4-3.6a1.5 1.5 0 0 1 2 0L13 15M18 8v8M14 12h8"/></symbol>
+    <symbol id="i-resize" viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M4 4l5 5M20 20l-5-5M15 4h5v5M9 20H4v-5M20 4l-5 5M4 20l5-5"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 6.7"/><path d="M20 4v7h-7"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><path d="M8 7.5 20 18M8 16.5 20 6"/></symbol>
+    <symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3"/><rect x="9" y="3" width="6" height="4" rx="1"/></symbol>
+    <symbol id="i-copy2" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <button class="brand" id="brandHome" type="button" aria-label="Về bàn làm việc">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 28 28"><path d="M3 9V4.5A1.5 1.5 0 0 1 4.5 3H9M19 3h4.5A1.5 1.5 0 0 1 25 4.5V9M25 19v4.5a1.5 1.5 0 0 1-1.5 1.5H19M9 25H4.5A1.5 1.5 0 0 1 3 23.5V19" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 19.5 19 10" stroke="#FF4D24" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </span>
+    <span class="brand-text"><b>Craf</b><i>bàn vẽ</i></span>
+  </button>
+
+  <div class="topbar-right">
+    <button class="nott-chip" id="nottChip" type="button" title="Kết nối Nott">
+      <span class="pulse" id="nottPulse"></span>
+      <span class="nott-chip-text">Nott</span>
+      <span class="nott-chip-meta" id="nottMeta">đang dò…</span>
+    </button>
+    <span class="topbar-sep"></span>
+    <button class="icon-btn" id="btnHelp" type="button" title="Phím tắt (?)" aria-label="Phím tắt"><svg class="ico"><use href="#i-help"/></svg></button>
+    <button class="btn ghost sm studio-only" id="btnExit" type="button">Thư viện</button>
+  </div>
+</header>
+
+<nav class="menubar" id="menubar" aria-label="Trình đơn">
+  <div class="menu" data-menu="file">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Tệp</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="new"><span>Bản vẽ mới…</span><kbd>Ctrl N</kbd></button>
+      <button type="button" role="menuitem" data-cmd="open"><span>Mở thư viện</span></button>
+      <button type="button" role="menuitem" data-cmd="save"><span>Lưu ngay</span><kbd>Ctrl S</kbd></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="import"><span>Nhập ảnh…</span></button>
+      <button type="button" role="menuitem" data-cmd="export"><span>Xuất ảnh…</span><kbd>Ctrl E</kbd></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="nott"><span>Gửi sang Nott</span></button>
+    </div>
+  </div>
+
+  <div class="menu" data-menu="edit">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Sửa</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="undo"><span>Hoàn tác</span><kbd>Ctrl Z</kbd></button>
+      <button type="button" role="menuitem" data-cmd="redo"><span>Làm lại</span><kbd>Ctrl Shift Z</kbd></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="cut"><span>Cắt vùng chọn</span><kbd>Ctrl X</kbd></button>
+      <button type="button" role="menuitem" data-cmd="copy"><span>Sao chép</span><kbd>Ctrl C</kbd></button>
+      <button type="button" role="menuitem" data-cmd="paste"><span>Dán thành lớp</span><kbd>Ctrl V</kbd></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="fill"><span>Tô màu</span><kbd>Alt Backspace</kbd></button>
+      <button type="button" role="menuitem" data-cmd="strokeSel"><span>Viền vùng chọn…</span></button>
+      <button type="button" role="menuitem" data-cmd="clear"><span>Xoá nội dung</span><kbd>Delete</kbd></button>
+    </div>
+  </div>
+
+  <div class="menu" data-menu="image">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Ảnh</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="imageSize"><span>Kích thước ảnh…</span></button>
+      <button type="button" role="menuitem" data-cmd="canvasSize"><span>Kích thước canvas…</span></button>
+      <button type="button" role="menuitem" data-cmd="crop"><span>Cắt theo vùng chọn</span></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="flipH"><span>Lật ngang</span></button>
+      <button type="button" role="menuitem" data-cmd="flipV"><span>Lật dọc</span></button>
+      <button type="button" role="menuitem" data-cmd="rotateL"><span>Xoay 90° trái</span></button>
+      <button type="button" role="menuitem" data-cmd="rotateR"><span>Xoay 90° phải</span></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="invertColors"><span>Đảo màu</span><kbd>Ctrl I</kbd></button>
+      <button type="button" role="menuitem" data-cmd="docBg"><span>Màu nền canvas…</span></button>
+      <button type="button" role="menuitem" data-cmd="clearGuides"><span>Xoá đường dóng</span></button>
+    </div>
+  </div>
+
+  <div class="menu" data-menu="layer">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Lớp</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="layerAdd"><span>Thêm lớp</span><kbd>Ctrl Shift N</kbd></button>
+      <button type="button" role="menuitem" data-cmd="layerDup"><span>Nhân bản lớp</span><kbd>Ctrl J</kbd></button>
+      <button type="button" role="menuitem" data-cmd="layerDel"><span>Xoá lớp</span></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="mergeDown"><span>Gộp xuống</span><kbd>Ctrl M</kbd></button>
+      <button type="button" role="menuitem" data-cmd="mergeAll"><span>Gộp tất cả</span><kbd>Ctrl Shift M</kbd></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="layerTransform"><span>Biến đổi lớp…</span></button>
+    </div>
+  </div>
+
+  <div class="menu" data-menu="select">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Chọn</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="selectAll"><span>Chọn tất cả</span><kbd>Ctrl A</kbd></button>
+      <button type="button" role="menuitem" data-cmd="deselect"><span>Bỏ chọn</span><kbd>Ctrl D</kbd></button>
+      <button type="button" role="menuitem" data-cmd="invertSel"><span>Đảo vùng chọn</span><kbd>Ctrl Shift I</kbd></button>
+      <button type="button" role="menuitem" data-cmd="selectLayerContent"><span>Chọn nội dung lớp</span></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="wand"><span>Chọn theo màu</span><kbd>W</kbd></button>
+      <button type="button" role="menuitem" data-cmd="marquee"><span>Vùng chọn chữ nhật</span><kbd>M</kbd></button>
+      <button type="button" role="menuitem" data-cmd="lasso"><span>Vùng chọn tự do</span><kbd>Q</kbd></button>
+    </div>
+  </div>
+
+  <div class="menu" data-menu="filter">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Lọc</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="filterBlur"><span>Làm mờ</span></button>
+      <button type="button" role="menuitem" data-cmd="filterSharpen"><span>Làm nét</span></button>
+      <button type="button" role="menuitem" data-cmd="filterNoise"><span>Nhiễu hạt</span></button>
+      <button type="button" role="menuitem" data-cmd="filterPixel"><span>Pixel hoá</span></button>
+      <button type="button" role="menuitem" data-cmd="filterEmboss"><span>Dập nổi</span></button>
+      <button type="button" role="menuitem" data-cmd="filterVignette"><span>Tối góc</span></button>
+      <button type="button" role="menuitem" data-cmd="filterGrain"><span>Hạt phim</span></button>
+      <div class="menu-sep"></div>
+      <button type="button" role="menuitem" data-cmd="filterGray"><span>Trắng đen</span></button>
+      <button type="button" role="menuitem" data-cmd="filterSepia"><span>Nâu cổ</span></button>
+      <button type="button" role="menuitem" data-cmd="invertColors"><span>Đảo màu</span></button>
+    </div>
+  </div>
+
+  <div class="menu" data-menu="adjust">
+    <button class="menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Chỉnh</button>
+    <div class="menu-pop" role="menu">
+      <button type="button" role="menuitem" data-cmd="adjustPane"><span>Bảng chỉnh màu</span></button>
+      <button type="button" role="menuitem" data-cmd="filterGray"><span>Trắng đen</span></button>
+      <button type="button" role="menuitem" data-cmd="filterSepia"><span>Nâu cổ</span></button>
+    </div>
+  </div>
+
+  <span class="menu-spacer"></span>
+  <span class="menu-note mono" id="menuSelNote">KHÔNG CÓ VÙNG CHỌN</span>
+</nav>
+
+<main id="viewStart" class="start">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="tick"></span> BÀN VẼ / SỐ 01 — CRAF</p>
+      <h1 class="display">Vẽ ra thứ<br><em>đáng để giữ.</em></h1>
+      <p class="lede">Poster, avatar, story — vẽ trên khổ giấy thật, cọ mượt, lưu ngay trên máy. Xong thì gửi thẳng sang Nott để nó nằm cạnh những ghi chú của bạn.</p>
+      <div class="hero-actions">
+        <button class="btn primary lg" id="btnStart" type="button"><svg class="ico"><use href="#i-brush"/></svg>Bắt đầu vẽ</button>
+        <button class="btn ghost lg" id="btnBrowse" type="button">Chọn khổ giấy<svg class="ico"><use href="#i-arrow-left"/></svg></button>
+      </div>
+      <dl class="hero-facts">
+        <div><dt>Khổ giấy</dt><dd>4 khổ + tuỳ chỉnh</dd></div>
+        <div><dt>Lưu</dt><dd>trên máy này</dd></div>
+        <div><dt>Nott</dt><dd id="factNott">đang dò…</dd></div>
+      </dl>
+    </div>
+
+    <div class="hero-stage" aria-label="Bản vẽ mẫu">
+      <div class="poster-wrap">
+        <div class="poster-frame">
+          <canvas id="heroPoster" width="1080" height="1350"></canvas>
+          <i class="crop c-tl"></i><i class="crop c-tr"></i><i class="crop c-bl"></i><i class="crop c-br"></i>
+        </div>
+        <div class="poster-meta">
+          <span class="mono">POSTER · 1080 × 1350</span>
+          <span class="mono dim">VẼ TRÊN CRAF</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="shelf" id="shelfPresets">
+    <div class="shelf-head">
+      <h2 class="kicker">01 — KHỔ GIẤY</h2>
+      <p class="shelf-hint">Chọn một tờ giấy để mở bàn vẽ</p>
+    </div>
+    <div class="presets" id="presets"></div>
+  </section>
+
+  <section class="shelf" id="shelfTemplates">
+    <div class="shelf-head">
+      <h2 class="kicker">02 — MẪU CỦA CRAF</h2>
+      <p class="shelf-hint">Mở sẵn rồi vẽ tiếp — lớp và màu đã chia sẵn</p>
+    </div>
+    <div class="templates-row" id="templates"></div>
+  </section>
+
+  <section class="shelf" id="shelfRecent">
+    <div class="shelf-head">
+      <h2 class="kicker">03 — BẢN VẼ TRÊN MÁY</h2>
+      <p class="shelf-hint" id="recentHint">Chưa có bản vẽ nào</p>
+    </div>
+    <div class="recent" id="recent"></div>
+  </section>
+
+  <footer class="start-foot">
+    <span class="mono">CRAF · BÀN VẼ CỤC BỘ</span>
+    <span class="mono dim">PNG · JPEG · WEBP · LƯU TỰ ĐỘNG · NOTT BRIDGE</span>
+  </footer>
+</main>
+
+<main id="viewStudio" class="studio" hidden>
+  <aside class="toolrail" aria-label="Công cụ">
+    <div class="rail-tools" id="railTools">
+      <button class="tool" data-tool="move" type="button" title="Di chuyển (V)"><svg class="ico"><use href="#i-move"/></svg><kbd>V</kbd></button>
+      <button class="tool" data-tool="marquee" type="button" title="Vùng chọn chữ nhật (M)"><svg class="ico"><use href="#i-marquee"/></svg><kbd>M</kbd></button>
+      <button class="tool" data-tool="lasso" type="button" title="Vùng chọn tự do (Q)"><svg class="ico"><use href="#i-lasso"/></svg><kbd>Q</kbd></button>
+      <button class="tool" data-tool="wand" type="button" title="Chọn theo màu (W)"><svg class="ico"><use href="#i-wand"/></svg><kbd>W</kbd></button>
+      <span class="rail-sep"></span>
+      <button class="tool" data-tool="brush" type="button" title="Cọ (B)"><svg class="ico"><use href="#i-brush"/></svg><kbd>B</kbd></button>
+      <button class="tool" data-tool="eraser" type="button" title="Tẩy (E)"><svg class="ico"><use href="#i-eraser"/></svg><kbd>E</kbd></button>
+      <button class="tool" data-tool="line" type="button" title="Đường (L)"><svg class="ico"><use href="#i-line"/></svg><kbd>L</kbd></button>
+      <button class="tool" data-tool="rect" type="button" title="Chữ nhật (R)"><svg class="ico"><use href="#i-rect"/></svg><kbd>R</kbd></button>
+      <button class="tool" data-tool="ellipse" type="button" title="Ellipse (O)"><svg class="ico"><use href="#i-ellipse"/></svg><kbd>O</kbd></button>
+      <button class="tool" data-tool="fill" type="button" title="Đổ màu (G)"><svg class="ico"><use href="#i-fill"/></svg><kbd>G</kbd></button>
+      <button class="tool" data-tool="gradient" type="button" title="Chuyển màu (U)"><svg class="ico"><use href="#i-gradient"/></svg><kbd>U</kbd></button>
+      <button class="tool" data-tool="pick" type="button" title="Hút màu (I)"><svg class="ico"><use href="#i-pick"/></svg><kbd>I</kbd></button>
+      <button class="tool" data-tool="text" type="button" title="Chữ (T)"><svg class="ico"><use href="#i-text"/></svg><kbd>T</kbd></button>
+      <span class="rail-sep"></span>
+      <button class="tool" data-tool="hand" type="button" title="Kéo bàn (H hoặc giữ Space)"><svg class="ico"><use href="#i-hand"/></svg><kbd>H</kbd></button>
+    </div>
+    <div class="rail-gap"></div>
+    <div class="rail-history">
+      <button class="tool small" id="btnUndo" type="button" title="Hoàn tác (Ctrl Z)"><svg class="ico"><use href="#i-undo"/></svg></button>
+      <button class="tool small" id="btnRedo" type="button" title="Làm lại (Ctrl Shift Z)"><svg class="ico"><use href="#i-redo"/></svg></button>
+    </div>
+    <button class="inkwell" id="inkwell" type="button" title="Màu hiện tại">
+      <span class="inkwell-plate"></span>
+      <span class="inkwell-dot" id="inkwellDot"></span>
+    </button>
+  </aside>
+
+  <section class="stage" id="stage">
+    <div class="stage-bar">
+      <div class="project-line">
+        <input class="project-name" id="projectName" value="Không tên" spellcheck="false" aria-label="Tên bản vẽ" />
+        <span class="project-meta mono" id="projectMeta">—</span>
+      </div>
+      <div class="stage-actions">
+        <span class="save-state" id="saveState"><i></i><span>Đã lưu</span></span>
+        <button class="icon-btn" id="btnGrid" type="button" title="Lưới & đường dóng (Ctrl G)" aria-label="Lưới"><svg class="ico"><use href="#i-grid"/></svg></button>
+        <div class="zoom">
+          <button class="icon-btn" id="zoomOut" type="button" aria-label="Thu nhỏ"><svg class="ico"><use href="#i-minus"/></svg></button>
+          <button class="zoom-val mono" id="zoomVal" type="button" title="Vừa khung (0)">100%</button>
+          <button class="icon-btn" id="zoomIn" type="button" aria-label="Phóng to"><svg class="ico"><use href="#i-plus"/></svg></button>
+        </div>
+        <button class="btn ghost" id="btnExport" type="button"><svg class="ico"><use href="#i-export"/></svg>Xuất</button>
+        <button class="btn primary" id="btnSend" type="button"><svg class="ico"><use href="#i-send"/></svg>Gửi sang Nott</button>
+      </div>
+    </div>
+
+    <div class="board-area" id="boardArea">
+      <div class="ruler ruler-x" id="rulerX" aria-hidden="true"></div>
+      <div class="ruler ruler-y" id="rulerY" aria-hidden="true"></div>
+      <div class="ruler-corner mono">PX</div>
+      <div class="board-holder" id="boardHolder">
+        <i class="crop c-tl"></i><i class="crop c-tr"></i><i class="crop c-bl"></i><i class="crop c-br"></i>
+        <div class="board" id="board">
+          <canvas id="paper"></canvas>
+          <canvas id="overlay"></canvas>
+          <canvas id="ants"></canvas>
+        </div>
+      </div>
+      <div class="drop-hint" id="dropHint" hidden><span class="mono">THẢ ẢNH ĐỂ MỞ THÀNH LỚP MỚI</span></div>
+      <div class="brush-ring" id="brushRing" hidden></div>
+      <div class="text-wrap" id="textWrap" hidden>
+        <textarea id="textInput" rows="1" spellcheck="false" placeholder="Gõ chữ…"></textarea>
+        <div class="text-hint mono">ENTER để đặt · ESC để bỏ</div>
+      </div>
+      <div class="stage-hint mono" id="stageHint">SPACE + KÉO ĐỂ DI CHUYỂN · LĂN CHUỘT ĐỂ ZOOM</div>
+    </div>
+  </section>
+
+  <aside class="inspector">
+    <div class="ins-tabs" role="tablist">
+      <button class="ins-tab active" data-pane="color" type="button" role="tab">Màu &amp; cọ</button>
+      <button class="ins-tab" data-pane="adjust" type="button" role="tab"><svg class="ico"><use href="#i-sliders"/></svg>Chỉnh</button>
+      <button class="ins-tab" data-pane="layers" type="button" role="tab"><svg class="ico"><use href="#i-layers"/></svg>Lớp <span class="tab-count" id="layerCount">1</span></button>
+      <button class="icon-btn ins-close" id="btnInsClose" type="button" aria-label="Đóng bảng công cụ"><svg class="ico"><use href="#i-x"/></svg></button>
+    </div>
+
+    <div class="ins-body">
+      <section class="pane" id="paneColor">
+        <div class="current-color">
+          <div class="color-stack">
+            <span class="big-swatch" id="bigSwatch"><i></i></span>
+            <button class="bg-swatch" id="bgSwatch" type="button" title="Màu nền — bấm để đổi (X đổi hai màu)"></button>
+          </div>
+          <div class="current-meta">
+            <span class="kicker">MÀU HIỆN TẠI</span>
+            <label class="hex-field"><span>#</span><input id="hexInput" maxlength="6" spellcheck="false" value="16130E" aria-label="Mã màu" /></label>
+          </div>
+          <div class="color-side">
+            <button class="icon-btn" id="btnPick" type="button" title="Hút màu từ bàn vẽ (I)"><svg class="ico"><use href="#i-pick"/></svg></button>
+            <button class="icon-btn" id="btnSwapColor" type="button" title="Đổi màu trước/sau (X)"><svg class="ico"><use href="#i-swap"/></svg></button>
+          </div>
+        </div>
+
+        <div class="sliders">
+          <label class="slider h"><span class="slider-k mono">H</span><input type="range" id="hue" min="0" max="360" value="30" /><output class="mono" id="hueVal">30</output></label>
+          <label class="slider s"><span class="slider-k mono">S</span><input type="range" id="sat" min="0" max="100" value="16" /><output class="mono" id="satVal">16</output></label>
+          <label class="slider l"><span class="slider-k mono">L</span><input type="range" id="lig" min="0" max="100" value="7" /><output class="mono" id="ligVal">7</output></label>
+        </div>
+
+        <div class="field-block">
+          <div class="field-head"><span class="kicker">CỠ CỌ</span><output class="mono" id="sizeVal">18 px</output></div>
+          <input type="range" id="brushSize" min="1" max="180" value="18" />
+          <div class="size-preview" id="sizePreview"><span id="sizeDot"></span></div>
+        </div>
+
+        <div class="field-block">
+          <div class="field-head"><span class="kicker">ĐỘ ĐẬM</span><output class="mono" id="opacityVal">100%</output></div>
+          <input type="range" id="brushOpacity" min="4" max="100" value="100" />
+        </div>
+
+        <div class="field-block" id="hardnessBlock">
+          <div class="field-head"><span class="kicker">ĐỘ CỨNG</span><output class="mono" id="hardVal">90%</output></div>
+          <input type="range" id="brushHard" min="0" max="100" value="90" />
+        </div>
+
+        <div class="field-block tool-only" id="wandBlock" hidden>
+          <div class="field-head"><span class="kicker">DUNG SAI MÀU</span><output class="mono" id="wandVal">32</output></div>
+          <input type="range" id="wandTol" min="0" max="140" value="32" />
+        </div>
+
+        <div class="field-block tool-only" id="gradBlock" hidden>
+          <div class="field-head"><span class="kicker">KIỂU CHUYỂN MÀU</span><span class="mono dim">Shift = đảo</span></div>
+          <div class="font-row" id="gradRow" role="group" aria-label="Kiểu chuyển màu">
+            <button class="font-chip active" data-grad="linear" type="button">Tuyến tính</button>
+            <button class="font-chip" data-grad="radial" type="button">Toả tròn</button>
+          </div>
+        </div>
+
+        <div class="field-block shape-only" id="shapeFillBlock" hidden>
+          <label class="switch"><input type="checkbox" id="shapeFill" /><span class="switch-track"></span><span>Tô kín hình</span></label>
+        </div>
+
+        <div class="field-block text-only" id="textBlock" hidden>
+          <div class="field-head"><span class="kicker">CỠ CHỮ</span><output class="mono" id="textSizeVal">96 px</output></div>
+          <input type="range" id="textSize" min="10" max="400" value="96" />
+          <div class="font-row" id="fontRow" role="group" aria-label="Kiểu chữ">
+            <button class="font-chip active" data-font="serif" type="button">Fraunces</button>
+            <button class="font-chip" data-font="sans" type="button">Segoe</button>
+            <button class="font-chip" data-font="mono" type="button">Geist</button>
+          </div>
+        </div>
+
+        <div class="swatch-block">
+          <div class="field-head"><span class="kicker">BẢNG CRAF</span><span class="mono dim" id="swatchHint">bấm để chọn</span></div>
+          <div class="swatches" id="swatches"></div>
+        </div>
+
+        <div class="swatch-block" id="nottSwatchBlock">
+          <div class="field-head"><span class="kicker">BẢNG NOTT</span><span class="mono dim">đọc từ Nott</span></div>
+          <div class="swatches" id="nottSwatches"><span class="swatch-empty mono">chưa có kết nối</span></div>
+        </div>
+      </section>
+
+      <section class="pane" id="paneAdjust" hidden>
+        <div class="adjust-head">
+          <span class="kicker">CHỈNH MÀU LỚP ĐANG CHỌN</span>
+          <span class="mono dim" id="adjustScope">toàn lớp</span>
+        </div>
+
+        <div class="sliders adjust-sliders">
+          <label class="slider"><span class="slider-k mono">SÁNG</span><input type="range" id="adjBright" min="-100" max="100" value="0" /><output class="mono" id="adjBrightVal">0</output></label>
+          <label class="slider"><span class="slider-k mono">TƯƠNG</span><input type="range" id="adjContrast" min="-100" max="100" value="0" /><output class="mono" id="adjContrastVal">0</output></label>
+          <label class="slider"><span class="slider-k mono">MÀU</span><input type="range" id="adjSaturate" min="0" max="200" value="100" /><output class="mono" id="adjSaturateVal">100</output></label>
+          <label class="slider"><span class="slider-k mono">SẮC</span><input type="range" id="adjHue" min="0" max="360" value="0" /><output class="mono" id="adjHueVal">0</output></label>
+          <label class="slider"><span class="slider-k mono">MỜ</span><input type="range" id="adjBlur" min="0" max="24" step="0.5" value="0" /><output class="mono" id="adjBlurVal">0</output></label>
+        </div>
+
+        <div class="field-block levels-block">
+          <div class="field-head"><span class="kicker">CẤP ĐỘ</span><span class="mono dim" id="adjLevelsHint">0 · 255 · 1.00</span></div>
+          <div class="sliders adjust-sliders">
+            <label class="slider"><span class="slider-k mono">ĐEN</span><input type="range" id="adjBlack" min="0" max="254" value="0" /><output class="mono" id="adjBlackVal">0</output></label>
+            <label class="slider"><span class="slider-k mono">TRẮNG</span><input type="range" id="adjWhite" min="1" max="255" value="255" /><output class="mono" id="adjWhiteVal">255</output></label>
+            <label class="slider"><span class="slider-k mono">GAMMA</span><input type="range" id="adjGamma" min="10" max="300" value="100" /><output class="mono" id="adjGammaVal">1.00</output></label>
+          </div>
+        </div>
+
+        <div class="preset-row">
+          <label class="switch"><input type="checkbox" id="adjGray" /><span class="switch-track"></span><span>Trắng đen</span></label>
+          <label class="switch"><input type="checkbox" id="adjSepia" /><span class="switch-track"></span><span>Nâu cổ</span></label>
+          <label class="switch"><input type="checkbox" id="adjInvert" /><span class="switch-track"></span><span>Đảo màu</span></label>
+        </div>
+
+        <div class="adjust-actions">
+          <button class="btn ghost" id="adjustReset" type="button">Đặt lại</button>
+          <button class="btn primary" id="adjustApply" type="button">Áp dụng</button>
+        </div>
+        <button class="btn ghost block" id="adjustCancel" type="button">Huỷ thay đổi</button>
+
+        <p class="ins-note">Chỉnh trực tiếp trên lớp đang chọn. Nếu có vùng chọn, hiệu ứng chỉ nằm trong vùng đó.</p>
+      </section>
+
+      <section class="pane" id="paneLayers" hidden>
+        <div class="layer-toolbar">
+          <span class="kicker">THỨ TỰ LỚP</span>
+          <div class="layer-tools">
+            <button class="icon-btn" id="btnLayerAdd" type="button" title="Thêm lớp"><svg class="ico"><use href="#i-plus"/></svg></button>
+            <button class="icon-btn" id="btnLayerDup" type="button" title="Nhân bản lớp"><svg class="ico"><use href="#i-copy"/></svg></button>
+            <button class="icon-btn" id="btnLayerMerge" type="button" title="Gộp xuống (Ctrl M)"><svg class="ico"><use href="#i-merge"/></svg></button>
+            <button class="icon-btn danger" id="btnLayerDel" type="button" title="Xoá lớp"><svg class="ico"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="layer-props" id="layerProps">
+          <label class="select-row">
+            <span class="kicker">TRỘN</span>
+            <select id="layerBlend">
+              <option value="source-over">Thường</option>
+              <option value="multiply">Nhân</option>
+              <option value="screen">Sáng</option>
+              <option value="overlay">Overlay</option>
+              <option value="darken">Tối hơn</option>
+              <option value="lighten">Sáng hơn</option>
+              <option value="soft-light">Soft light</option>
+              <option value="hard-light">Hard light</option>
+              <option value="color-dodge">Color dodge</option>
+              <option value="color-burn">Color burn</option>
+              <option value="difference">Difference</option>
+              <option value="exclusion">Exclusion</option>
+              <option value="hue">Hue</option>
+              <option value="saturation">Saturation</option>
+              <option value="color">Color</option>
+              <option value="luminosity">Luminosity</option>
+            </select>
+          </label>
+          <div class="field-block tight">
+            <div class="field-head"><span class="kicker">ĐỘ MỜ</span><output class="mono" id="layerOpacityVal">100%</output></div>
+            <input type="range" id="layerOpacity" min="0" max="100" value="100" />
+          </div>
+        </div>
+
+        <div class="layers-list" id="layersList"></div>
+        <p class="ins-note">Kéo để sắp xếp · nhấp đúp để đổi tên · Ctrl + nhấp để chọn nội dung</p>
+      </section>
+    </div>
+  </aside>
+
+  <div class="ins-scrim" id="insScrim" hidden></div>
+
+  <footer class="statusbar">
+    <span class="mono" id="cursorPos">X — Y —</span>
+    <span class="status-dot"></span>
+    <span class="mono" id="statusLayer">LỚP 1/1</span>
+    <span class="mono status-sel" id="statusSel" hidden>VÙNG CHỌN</span>
+    <span class="status-spacer"></span>
+    <span class="mono status-hint">[ ] CỠ CỌ · CTRL S LƯU · 0 VỪA KHUNG</span>
+    <span class="status-dot"></span>
+    <span class="mono status-nott" id="statusNott"><i></i>Nott</span>
+  </footer>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<aside class="drawer" id="nottDrawer" hidden aria-label="Nott">
+  <header class="drawer-head">
+    <span class="drawer-mark"><svg class="ico"><use href="#i-spark"/></svg></span>
+    <div>
+      <p class="kicker">NOTT BRIDGE</p>
+      <h2 id="drawerTitle">Nott</h2>
+    </div>
+    <button class="icon-btn" id="btnDrawerClose" type="button" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+  </header>
+  <div class="drawer-body">
+    <div class="nott-id">
+      <span class="nott-avatar" id="nottAvatar">N</span>
+      <div class="nott-id-text">
+        <strong id="nottPerson">—</strong>
+        <span class="mono" id="nottGroup">—</span>
+      </div>
+      <span class="conn" id="connState"><i></i>đang dò</span>
+    </div>
+
+    <div class="drawer-actions">
+      <button class="btn primary block" id="btnDrawerSend" type="button"><svg class="ico"><use href="#i-send"/></svg>Gửi bản vẽ đang mở</button>
+      <div class="drawer-row">
+        <button class="btn ghost" id="btnOpenNott" type="button"><svg class="ico"><use href="#i-folder"/></svg>Mở Nott</button>
+        <button class="btn ghost" id="btnOpenFolder" type="button"><svg class="ico"><use href="#i-folder"/></svg>Thư mục</button>
+      </div>
+    </div>
+
+    <section class="drawer-section">
+      <div class="drawer-section-head"><span class="kicker">MÀU CỦA NOTT</span><span class="mono dim">accent</span></div>
+      <div class="swatches" id="drawerSwatches"><span class="swatch-empty mono">chưa đọc được</span></div>
+    </section>
+
+    <section class="drawer-section">
+      <div class="drawer-section-head"><span class="kicker">GHI CHÚ GẦN ĐÂY</span><span class="mono dim" id="noteCount">0</span></div>
+      <ul class="note-list" id="noteList"></ul>
+    </section>
+
+    <section class="drawer-section">
+      <div class="drawer-section-head"><span class="kicker">ẢNH TRONG NOTT</span><span class="mono dim">bấm để đưa vào lớp</span></div>
+      <div class="nott-images" id="nottImages"><span class="swatch-empty mono">chưa có ảnh</span></div>
+    </section>
+  </div>
+</aside>
+
+<div class="modal" id="helpModal" hidden>
+  <div class="modal-card">
+    <header class="modal-head">
+      <div><p class="kicker">CRAF / PHÍM TẮT</p><h2>Vẽ nhanh hơn</h2></div>
+      <button class="icon-btn" id="btnHelpClose" type="button" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="keys">
+      <div><kbd>V</kbd><span>Di chuyển</span></div><div><kbd>M</kbd><span>Vùng chọn chữ nhật</span></div>
+      <div><kbd>Q</kbd><span>Vùng chọn tự do</span></div><div><kbd>W</kbd><span>Chọn theo màu</span></div>
+      <div><kbd>B</kbd><span>Cọ</span></div><div><kbd>E</kbd><span>Tẩy</span></div>
+      <div><kbd>L</kbd><span>Đường</span></div><div><kbd>R</kbd><span>Chữ nhật</span></div>
+      <div><kbd>O</kbd><span>Ellipse</span></div><div><kbd>G</kbd><span>Đổ màu</span></div>
+      <div><kbd>U</kbd><span>Chuyển màu</span></div><div><kbd>I</kbd><span>Hút màu</span></div>
+      <div><kbd>T</kbd><span>Chữ</span></div><div><kbd>H</kbd><span>Kéo bàn</span></div>
+      <div><kbd>X</kbd><span>Đổi màu trước/sau</span></div><div><kbd>D</kbd><span>Màu mặc định</span></div>
+      <div><kbd>[</kbd><span>Cọ nhỏ</span></div><div><kbd>]</kbd><span>Cọ lớn</span></div>
+      <div><kbd>0</kbd><span>Vừa khung</span></div><div><kbd>1</kbd><span>100%</span></div>
+      <div><kbd>Ctrl A</kbd><span>Chọn tất cả</span></div><div><kbd>Ctrl D</kbd><span>Bỏ chọn</span></div>
+      <div><kbd>Ctrl C</kbd><span>Sao chép</span></div><div><kbd>Ctrl V</kbd><span>Dán thành lớp</span></div>
+      <div><kbd>Ctrl X</kbd><span>Cắt vùng chọn</span></div><div><kbd>Delete</kbd><span>Xoá nội dung chọn</span></div>
+      <div><kbd>Ctrl Z</kbd><span>Hoàn tác</span></div><div><kbd>Ctrl Shift Z</kbd><span>Làm lại</span></div>
+      <div><kbd>Ctrl M</kbd><span>Gộp xuống</span></div><div><kbd>Ctrl T</kbd><span>Biến đổi lớp</span></div>
+      <div><kbd>Ctrl S</kbd><span>Lưu</span></div><div><kbd>Ctrl E</kbd><span>Xuất ảnh</span></div>
+      <div><kbd>Shift</kbd><span>Giữ tỉ lệ / thêm vùng</span></div><div><kbd>Ctrl + nhấp</kbd><span>Chọn nội dung lớp</span></div>
+    </div>
+    <p class="modal-note">Bản vẽ tự lưu sau khi bạn ngừng tay. Kéo từ thước để đặt đường dóng. Muốn gửi sang Nott, bấm nút đỏ ở góc phải.</p>
+  </div>
+</div>
+
+<div class="modal" id="sizeModal" hidden>
+  <div class="modal-card narrow">
+    <header class="modal-head">
+      <div><p class="kicker" id="sizeKicker">CRAF / KÍCH THƯỚC</p><h2 id="sizeTitle">Kích thước ảnh</h2></div>
+      <button class="icon-btn" id="btnSizeClose" type="button" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="dialog-body">
+      <p class="modal-note" id="sizeNote">—</p>
+      <div class="size-form">
+        <label class="size-field"><span class="kicker">RỘNG</span><span class="size-input"><input id="sizeW" inputmode="numeric" /><em>px</em></span></label>
+        <span class="size-x mono">×</span>
+        <label class="size-field"><span class="kicker">CAO</span><span class="size-input"><input id="sizeH" inputmode="numeric" /><em>px</em></span></label>
+      </div>
+      <label class="switch" id="sizeKeepRow"><input type="checkbox" id="sizeKeep" checked /><span class="switch-track"></span><span>Giữ tỉ lệ</span></label>
+      <label class="select-row" id="sizeAnchorRow" hidden>
+        <span class="kicker">NEO</span>
+        <select id="sizeAnchor">
+          <option value="center">Giữa</option>
+          <option value="top-left">Trên trái</option>
+          <option value="top">Trên</option>
+          <option value="top-right">Trên phải</option>
+          <option value="left">Trái</option>
+          <option value="right">Phải</option>
+          <option value="bottom-left">Dưới trái</option>
+          <option value="bottom">Dưới</option>
+          <option value="bottom-right">Dưới phải</option>
+        </select>
+      </label>
+    </div>
+    <footer class="modal-actions">
+      <button class="btn ghost" id="btnSizeCancel" type="button">Huỷ</button>
+      <button class="btn primary" id="btnSizeApply" type="button">Áp dụng</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal" id="transformModal" hidden>
+  <div class="modal-card narrow">
+    <header class="modal-head">
+      <div><p class="kicker">CRAF / BIẾN ĐỔI</p><h2>Biến đổi lớp</h2></div>
+      <button class="icon-btn" id="btnTfClose" type="button" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="dialog-body">
+      <p class="modal-note">Xoay, co giãn và lật lớp đang chọn quanh tâm bản vẽ. Nội dung nằm ngoài khung sẽ bị cắt.</p>
+      <div class="form-grid">
+        <label class="field-line"><span class="kicker">CO NGANG %</span><input id="tfScaleX" inputmode="decimal" value="100" spellcheck="false" /></label>
+        <label class="field-line"><span class="kicker">CO DỌC %</span><input id="tfScaleY" inputmode="decimal" value="100" spellcheck="false" /></label>
+      </div>
+      <label class="field-line"><span class="kicker">XOAY °</span><input id="tfAngle" inputmode="decimal" value="0" spellcheck="false" /></label>
+      <div class="preset-row">
+        <label class="switch"><input type="checkbox" id="tfFlipH" /><span class="switch-track"></span><span>Lật ngang</span></label>
+        <label class="switch"><input type="checkbox" id="tfFlipV" /><span class="switch-track"></span><span>Lật dọc</span></label>
+      </div>
+    </div>
+    <footer class="modal-actions">
+      <button class="btn ghost" id="btnTfCancel" type="button">Huỷ</button>
+      <button class="btn primary" id="btnTfApply" type="button">Áp dụng</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal" id="strokeModal" hidden>
+  <div class="modal-card narrow">
+    <header class="modal-head">
+      <div><p class="kicker">CRAF / VIỀN VÙNG CHỌN</p><h2>Viền vùng chọn</h2></div>
+      <button class="icon-btn" id="btnStrokeClose" type="button" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="dialog-body">
+      <p class="modal-note">Vẽ một đường viền quanh vùng chọn đang có, lên lớp hiện tại.</p>
+      <div class="form-grid">
+        <label class="field-line"><span class="kicker">ĐỘ DÀY</span><input id="strokeWidth" inputmode="numeric" value="4" spellcheck="false" /></label>
+        <label class="select-row"><span class="kicker">VỊ TRÍ</span>
+          <select id="strokeAlign">
+            <option value="center">Giữa đường chọn</option>
+            <option value="inside">Bên trong</option>
+            <option value="outside">Bên ngoài</option>
+          </select>
+        </label>
+      </div>
+      <label class="select-row"><span class="kicker">MÀU VIỀN</span>
+        <select id="strokeColor">
+          <option value="fg">Màu trước</option>
+          <option value="bg">Màu sau</option>
+        </select>
+      </label>
+    </div>
+    <footer class="modal-actions">
+      <button class="btn ghost" id="btnStrokeCancel" type="button">Huỷ</button>
+      <button class="btn primary" id="btnStrokeApply" type="button">Áp dụng</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal" id="exportModal" hidden>
+  <div class="modal-card narrow">
+    <header class="modal-head">
+      <div><p class="kicker">CRAF / XUẤT ẢNH</p><h2>Mang ra ngoài</h2></div>
+      <button class="icon-btn" id="btnExportClose" type="button" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="dialog-body">
+      <label class="field-line"><span class="kicker">TÊN TỆP</span><input id="exportName" spellcheck="false" /></label>
+      <div class="form-grid">
+        <label class="select-row"><span class="kicker">ĐỊNH DẠNG</span>
+          <select id="exportFormat">
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="webp">WebP</option>
+          </select>
+        </label>
+        <label class="select-row"><span class="kicker">TỈ LỆ</span>
+          <select id="exportScale">
+            <option value="0.25">25%</option>
+            <option value="0.5">50%</option>
+            <option value="1" selected>100%</option>
+            <option value="2">200%</option>
+          </select>
+        </label>
+      </div>
+      <div class="field-block" id="exportQualityRow" hidden>
+        <div class="field-head"><span class="kicker">CHẤT LƯỢNG</span><output class="mono" id="exportQualityVal">92%</output></div>
+        <input type="range" id="exportQuality" min="40" max="100" value="92" />
+      </div>
+      <label class="switch" id="exportAlphaRow"><input type="checkbox" id="exportAlpha" checked /><span class="switch-track"></span><span>Giữ nền trong suốt</span></label>
+      <p class="modal-note" id="exportInfo">—</p>
+    </div>
+    <footer class="modal-actions">
+      <button class="btn ghost" id="btnExportCancel" type="button">Huỷ</button>
+      <button class="btn primary" id="btnExportGo" type="button"><svg class="ico"><use href="#i-download"/></svg>Tải xuống</button>
+    </footer>
+  </div>
+</div>
+
+<input type="file" id="fileImage" accept="image/*" hidden />
+<input type="color" id="bgPicker" value="#FDFAF3" hidden />
+<input type="color" id="docBgPicker" value="#FDFAF3" hidden />
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="/app/app.js"></script>
+</body>
+</html>
