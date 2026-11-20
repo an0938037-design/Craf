@@ -2,7 +2,7 @@
 import { $, $$, dpr, loadImage } from './src/platform/index.js';
 import { clamp, esc, fmt, pad, uid } from './src/shared/index.js';
 import { bezierPoints, previewGeometry, maskAll, maskBounds, maskFromRect as coreMaskFromRect, maskInvert, hexToHsl, hexToRgb, hslToHex, rgbToHsl, rgbToHex } from './src/core/index.js';
-import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromWand as maskFromWandFn, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, compositeSample } from './src/pixel/index.js';
+import { maskToCanvas, maskExtract, maskFromLayerAlpha, maskFromPolygon as pixelMaskFromPolygon, maskTranslate, wandMask, floodFillLayer, strokePath, fillPath, clearPath, cropCanvas } from './src/pixel/index.js';
 import { selection } from './src/model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath } from './src/render/index.js';
 
@@ -503,8 +503,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
   }
 
   function maskFromWand(x, y, tol) {
-    const { w, h } = state.doc;
-    return maskFromWandFn(compositeSample(state.doc, w, h, true), w, h, x, y, tol);
+    return wandMask(state.doc, x, y, tol);
   }
 
   function updateSelectionUI() {
@@ -1556,15 +1555,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const layer = activeLayer();
     if (!layer) return;
     pushLayerHistory();
-    layer.ctx.save();
-    if (state.sel.active) {
-      layer.ctx.globalCompositeOperation = 'destination-out';
-      layer.ctx.fillStyle = '#000';
-      layer.ctx.fill(selPath(), 'evenodd');
-    } else {
-      layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
-    }
-    layer.ctx.restore();
+    clearPath(layer.ctx, state.sel.active ? selPath() : null, state.doc.w, state.doc.h);
     render(); updateLayerThumb(); markDirty();
   }
 
@@ -1574,12 +1565,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const layer = activeLayer();
     if (!layer) return;
     pushLayerHistory();
-    layer.ctx.save();
-    if (state.sel.active) layer.ctx.clip(selPath(), 'evenodd');
-    layer.ctx.globalAlpha = state.opacity;
-    layer.ctx.fillStyle = state.color;
-    layer.ctx.fillRect(0, 0, state.doc.w, state.doc.h);
-    layer.ctx.restore();
+    fillPath(layer.ctx, state.sel.active ? selPath() : null, { w: state.doc.w, h: state.doc.h, color: state.color, opacity: state.opacity });
     render(); updateLayerThumb(); markDirty();
   }
 
@@ -1605,25 +1591,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const color = $('#strokeColor').value === 'bg' ? state.bgColor : state.color;
     closeStrokeModal();
     pushLayerHistory();
-    const ctx = layer.ctx;
-    ctx.save();
-    let lineWidth = width;
-    if (align === 'inside') {
-      ctx.clip(selPath(), 'evenodd');
-      lineWidth = width * 2;
-    } else if (align === 'outside') {
-      const outside = new Path2D();
-      outside.rect(0, 0, state.doc.w, state.doc.h);
-      outside.addPath(selPath());
-      ctx.clip(outside, 'evenodd');
-      lineWidth = width * 2;
-    }
-    ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = color;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.stroke(selPath());
-    ctx.restore();
+    strokePath(layer.ctx, selPath(), { docW: state.doc.w, docH: state.doc.h, color, width, align });
     render(); updateLayerThumb(); markDirty();
     toast(`Đã viền vùng chọn · ${width}px`, 'ok', 1600);
   }
@@ -2081,38 +2049,7 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const { w, h } = state.doc;
     const x = Math.floor(pt.x), y = Math.floor(pt.y);
     if (x < 0 || y < 0 || x >= w || y >= h) return;
-    const img = layer.ctx.getImageData(0, 0, w, h);
-    const data = new Uint32Array(img.data.buffer);
-    const idx = y * w + x;
-    const target = data[idx];
-    const c = hexToRgb(state.color);
-    const fill = (255 << 24) | (c.b << 16) | (c.g << 8) | c.r;
-    if (target === fill) return;
-    const tol = 44;
-    const tr = target & 255, tg = (target >>> 8) & 255, tb = (target >>> 16) & 255, ta = (target >>> 24) & 255;
-    let selData = null;
-    if (state.sel.active) selData = state.sel.data;
-    const allowed = (p) => !selData || selData[p] > 127;
-    if (!allowed(idx)) return;
-    const near = (v) => {
-      const a = (v >>> 24) & 255;
-      if (Math.abs(a - ta) > tol) return false;
-      if (ta === 0) return true;
-      return Math.abs((v & 255) - tr) <= tol && Math.abs(((v >>> 8) & 255) - tg) <= tol && Math.abs(((v >>> 16) & 255) - tb) <= tol;
-    };
-    const stack = new Int32Array(w * h);
-    let sp = 0;
-    stack[sp++] = idx;
-    data[idx] = fill;
-    while (sp) {
-      const p = stack[--sp];
-      const px = p % w;
-      if (px > 0 && allowed(p - 1) && near(data[p - 1])) { data[p - 1] = fill; stack[sp++] = p - 1; }
-      if (px < w - 1 && allowed(p + 1) && near(data[p + 1])) { data[p + 1] = fill; stack[sp++] = p + 1; }
-      if (p >= w && allowed(p - w) && near(data[p - w])) { data[p - w] = fill; stack[sp++] = p - w; }
-      if (p < (h - 1) * w && allowed(p + w) && near(data[p + w])) { data[p + w] = fill; stack[sp++] = p + w; }
-    }
-    layer.ctx.putImageData(img, 0, 0);
+    floodFillLayer(layer.ctx, w, h, x, y, state.color, 44, state.sel.active ? state.sel.data : null);
   }
 
   function pickColor(e) {
@@ -2369,9 +2306,9 @@ import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, sta
     const b = state.sel.bbox;
     const doc = state.doc;
     for (const l of doc.layers) {
-      const old = l.canvas;
-      replaceLayerImage(l, b.w, b.h);
-      l.ctx.drawImage(old, -b.x, -b.y);
+      const c = cropCanvas(l.canvas, b);
+      l.canvas = c;
+      l.ctx = c.getContext('2d');
     }
     doc.w = b.w; doc.h = b.h;
     afterGeometryChange();
