@@ -2,7 +2,8 @@
  * Cổng công khai của section `shell` — composition root.
  *
  * `shell` được dùng mọi section khác; không section nào được import ngược vào
- * `shell`. Hiện đã có cầu lưu trữ; boot/keymap/commands sẽ chuyển tiếp ở P5-5…P6.
+ * `shell`. `index.js` là điểm vào duy nhất của app: re-export các cổng con và
+ * nạp `boot.js`, nơi nối mọi section lại rồi khởi động studio.
  */
 export {
   api,
@@ -19,3 +20,6 @@ export {
 } from './storage.js';
 export { createCommands } from './commands.js';
 export { createKeyHandler, bindKeymap } from './keymap.js';
+
+/* Composition root: chạy một lần khi index.html nạp module này. */
+import './boot.js';

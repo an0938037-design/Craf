@@ -1,11 +1,11 @@
-/* Craf — bàn vẽ. Vanilla canvas studio with a Nott bridge. */
-import { $, $$, dpr, loadImage } from './src/platform/index.js';
-import { clamp, esc, fmt, pad, uid, createEmitter } from './src/shared/index.js';
-import { maskAll, maskBounds, maskInvert } from './src/core/index.js';
-import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from './src/pixel/index.js';
-import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from './src/model/index.js';
-import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from './src/render/index.js';
-import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from './src/tools/index.js';
+/* Craf — composition root. Nơi duy nhất nối các section lại và khởi động studio. */
+import { $, $$, dpr, loadImage } from '../platform/index.js';
+import { clamp, esc, fmt, pad, uid, createEmitter } from '../shared/index.js';
+import { maskAll, maskBounds, maskInvert } from '../core/index.js';
+import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, cropCanvas, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, replaceLayerImage, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from '../pixel/index.js';
+import { selection, state, activeLayer, uniqueProjectName, newDocData, activate, pushDoc, pushLayer, canUndo, canRedo, docSnapshot, docFromJSON, layerFromJSON, CRAF_SWATCHES } from '../model/index.js';
+import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from '../render/index.js';
+import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from '../tools/index.js';
 import {
   toast, configureStart, renderPresets, renderRecent, renderTemplates, paintTemplatePreviews, renderNott,
   configureLayers, renderLayers, setColor, setBgColor, swapColors, resetColors, renderPalette, setFill, hslFromUI,
@@ -14,9 +14,10 @@ import {
   openDrawer, closeDrawer, openHelp, closeHelp, openIns, closeIns,
   configureModals, openSizeModal, closeSizeModal, openTransformModal, closeTransformModal,
   openStrokeModal, closeStrokeModal, openDocBgPicker, previewDocBg, commitDocBg, sizeState, paintHero,
-} from './src/ui/index.js';
-import { createCommands, bindKeymap } from './src/shell/index.js';
-import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './src/shell/index.js';
+} from '../ui/index.js';
+import { createCommands } from './commands.js';
+import { bindKeymap } from './keymap.js';
+import { api, markDirty, setSaveState, saveNow, openExport, runExport, updateExportInfo, refresh, refreshNott, compositeCanvas } from './storage.js';
 
 (() => {
   'use strict';
