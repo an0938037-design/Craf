@@ -19,6 +19,10 @@ import {
   state, clearHistory, pushDoc, pushLayer, canUndo, canRedo, HISTORY_LIMITS,
   sheetSize, uniqueProjectName, layerMeta,
 } from '../app/src/model/index.js';
+import { selection } from '../app/src/model/index.js';
+import { get, set, subscribe, emit } from '../app/src/model/index.js';
+import { adjustFilter } from '../app/src/pixel/index.js';
+import { niceStep } from '../app/src/render/rulers.js';
 import { toPayload, docSnapshot, docFromJSON, layerFromJSON, DEFAULT_BG } from '../app/src/model/serialize.js';
 
 /* ------------------------------------------------------------------ color */
@@ -299,6 +303,104 @@ test('layerMeta mặc định và id riêng', () => {
   });
   assert.equal(b.name, 'Lớp 2');
   assert.notEqual(a.id, b.id);
+});
+
+/* ------------------------------------------------------------------ store + selection */
+
+test('store: get/set/subscribe/emit', () => {
+  const seen = [];
+  const stop = subscribe((st, keys) => seen.push([keys.join(','), st.size]));
+  set({ size: 44 });
+  assert.equal(get('size'), 44);
+  assert.deepEqual(seen.pop(), ['size', 44]);
+  emit(['size']);
+  assert.deepEqual(seen.pop(), ['size', 44]);
+  stop();
+  set({ size: 18 });
+  assert.equal(seen.length, 0);
+  assert.equal(get(), state);
+  /* trả lại giá trị mặc định để không ảnh hưởng test khác */
+  set({ size: 18 });
+});
+
+test('selection: configure + apply replace/add/subtract/intersect', () => {
+  selection.configure({ getDocSize: () => ({ w: 4, h: 4 }) });
+  selection.clear();
+  const r1 = selection.apply(maskFromRect(1, 1, 2, 2, 4, 4), 'replace');
+  assert.deepEqual(r1.bbox, { x: 1, y: 1, w: 2, h: 2 });
+  assert.equal(selection.isActive(), true);
+  assert.equal(selection.contains(1, 1), true);
+  assert.equal(selection.contains(1.9, 2.9), true);
+  assert.equal(selection.contains(0, 0), false);
+  assert.equal(selection.contains(3, 3), false);
+
+  const add = selection.apply(maskFromRect(0, 0, 1, 1, 4, 4), 'add');
+  assert.deepEqual(add.bbox, { x: 0, y: 0, w: 3, h: 3 });
+  assert.equal(selection.contains(0, 0), true);
+
+  const sub = selection.apply(maskFromRect(1, 1, 1, 1, 4, 4), 'subtract');
+  assert.equal(selection.contains(1, 1), false);
+  assert.equal(selection.contains(1, 2), true);
+
+  const both = selection.apply(maskAll(4, 4), 'intersect');
+  assert.deepEqual(both.bbox, { x: 0, y: 0, w: 3, h: 3 });
+});
+
+test('selection: apply rỗng → null, sai cỡ → throw', () => {
+  selection.configure({ getDocSize: () => ({ w: 4, h: 4 }) });
+  selection.clear();
+  assert.equal(selection.apply(maskCreate(4, 4), 'replace'), null);
+  assert.equal(selection.isActive(), false);
+  assert.throws(() => selection.apply(maskCreate(3, 3), 'replace'), /mask size mismatch/);
+});
+
+test('selection: replace/clear/contains/revision đơn điệu', () => {
+  selection.configure({ getDocSize: () => ({ w: 2, h: 2 }) });
+  selection.clear();
+  const r0 = selection.revision();
+  selection.replace({ rev: 999, w: 2, h: 2, data: maskAll(2, 2), bbox: { x: 0, y: 0, w: 2, h: 2 } });
+  assert.ok(selection.revision() > r0);
+  assert.equal(selection.contains(1, 1), true);
+  selection.clear();
+  assert.equal(selection.contains(1, 1), false);
+  assert.ok(selection.revision() > r0 + 1);
+  assert.equal(selection.get(), null);
+});
+
+test('presets: 4 khổ dọc/ngang hợp lệ và swatch hex', async () => {
+  const { PRESETS, TEMPLATES, CRAF_SWATCHES } = await import('../app/src/model/presets.js');
+  assert.equal(PRESETS.length, 4);
+  assert.equal(new Set(PRESETS.map((p) => p.key)).size, 4);
+  for (const p of [...PRESETS, ...TEMPLATES]) {
+    assert.ok(p.w > 0 && p.h > 0 && p.name);
+  }
+  assert.equal(CRAF_SWATCHES.length, 16);
+  for (const c of CRAF_SWATCHES) assert.match(c, /^#[0-9A-F]{6}$/);
+});
+
+/* ------------------------------------------------------------------ render/pixel helpers */
+
+test('adjustFilter dựng chuỗi CSS đúng thứ tự', () => {
+  const base = { bright: 0, contrast: 0, saturate: 100, hue: 0, blur: 0, gray: false, sepia: false, invert: false };
+  assert.equal(adjustFilter(base), 'none');
+  assert.equal(adjustFilter({ ...base, bright: 20, saturate: 80 }), 'brightness(120%) saturate(80%)');
+  assert.equal(
+    adjustFilter({ bright: 10, contrast: -5, saturate: 120, hue: -90, blur: 0.5, gray: true, sepia: true, invert: true }),
+    'brightness(110%) contrast(95%) saturate(120%) hue-rotate(-90deg) blur(0.5px) grayscale(1) sepia(1) invert(1)',
+  );
+});
+
+test('niceStep chọn 1/2/5 × 10^n', () => {
+  assert.equal(niceStep(1), 1);
+  assert.equal(niceStep(0), 1);
+  assert.equal(niceStep(0.5), 1);
+  assert.equal(niceStep(2), 2);
+  assert.equal(niceStep(3), 5);
+  assert.equal(niceStep(7), 10);
+  assert.equal(niceStep(12), 20);
+  assert.equal(niceStep(45), 50);
+  assert.equal(niceStep(99), 100);
+  assert.equal(niceStep(100), 100);
 });
 
 /* ------------------------------------------------------------------ serialize */
