@@ -121,15 +121,20 @@ export function createKeyHandler(d) {
  */
 export function bindKeymap(d) {
   const onKey = createKeyHandler(d);
+  /* Nhả pan cả khi keyup không tới: Alt+Tab / đổi cửa sổ / ẩn tab lúc đang giữ
+     Space. Nếu không, state.space kẹt true và mọi cú kéo sau đó thành pan. */
+  const releaseSpace = () => {
+    const s = d.getState();
+    s.space = false;
+    $('#stage').style.cursor = '';
+    const overlay = $('#overlay');
+    if (overlay.style.cursor === 'grab') overlay.style.cursor = s.tool === 'brush' ? 'none' : 'crosshair';
+  };
   document.addEventListener('keydown', onKey);
   document.addEventListener('keyup', (e) => {
-    if (e.code === 'Space') {
-      const s = d.getState();
-      s.space = false;
-      $('#stage').style.cursor = '';
-      const overlay = $('#overlay');
-      if (overlay.style.cursor === 'grab') overlay.style.cursor = s.tool === 'brush' ? 'none' : 'crosshair';
-    }
+    if (e.code === 'Space') releaseSpace();
   });
+  window.addEventListener('blur', releaseSpace);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseSpace(); });
   return onKey;
 }
