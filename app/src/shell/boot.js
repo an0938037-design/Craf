@@ -721,6 +721,10 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
   function beginDraw(e) {
     const pt = toDoc(e);
     const tool = state.tool;
+    /* Tool chỉ đọc (hút màu, wand, chọn vùng) giữ nguyên phiên chỉnh màu; mọi
+       tool sửa điểm ảnh phải chốt phiên trước — nếu không, bấm Huỷ sau đó sẽ
+       khôi phục ảnh gốc và nuốt luôn phần vừa vẽ. */
+    if (!['pick', 'wand', 'marquee', 'lasso'].includes(tool)) finishAdjust();
     if (tool === 'pick') { pickColor(e); return; }
     if (tool === 'wand') {
       const mode = e.altKey ? 'subtract' : e.shiftKey ? 'add' : 'replace';
