@@ -1,7 +1,7 @@
 # `platform/` — cầu nối trình duyệt
 
 ## Owns
-Mọi lời gọi API trình duyệt dùng chung: `$`, `$$`, `dpr()`, `loadImage()`, clipboard, File/Blob, `requestAnimationFrame` bọc lại.
+Mọi lời gọi API trình duyệt dùng chung: `$`, `$$`, `dpr()`, `loadImage()`, clipboard, File/Blob, `requestAnimationFrame` bọc lại. `loadImage()` trả `ImageBitmap` đã giải mã xong (rơi về thẻ `Image` nếu lỗi/CORS).
 
 ## May use
 Không import section nào.
