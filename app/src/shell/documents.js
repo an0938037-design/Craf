@@ -96,8 +96,13 @@ export async function goStart() {
      chỉnh màu trước khi lưu và rời studio. */
   deps.closeTextEditor();
   deps.finishAdjust();
-  /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio. */
-  await flushSave();
+  /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio.
+     Lưu thất bại thì ở lại studio — rời đi lúc này là mất thay đổi chưa lên đĩa. */
+  const saved = await flushSave();
+  if (!saved) {
+    toast('Chưa lưu được bản vẽ — kiểm tra kết nối rồi thử lại', 'err', 3200);
+    return;
+  }
   state.doc = null;
   state.draw = null;
   state.adjust = null;
@@ -125,8 +130,12 @@ export async function applySizeModal() {
   const { mode } = sizeState();
   if (mode === 'new') {
     /* Tạo bản mới trong studio: phải lưu xong bản cũ trước khi thay doc,
-       nếu không thay đổi đang chờ autosave sẽ mất. */
-    await flushSave();
+       nếu không thay đổi đang chờ autosave sẽ mất. Lưu hỏng thì không mở bản
+       mới để giữ nguyên bản đang vẽ. */
+    if (!(await flushSave())) {
+      toast('Chưa lưu được bản cũ — chưa mở bản mới', 'err', 3200);
+      return;
+    }
     createProject(`Bản vẽ ${w}×${h}`, w, h);
   } else if (mode === 'image') {
     resizeImage(w, h);
