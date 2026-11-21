@@ -4,7 +4,7 @@
  *
  * Hàm boot-local của `boot.js` dùng ở đây được tiêm 1 lần qua
  * `configureDocuments({...})` trong `boot()` trước khi gọi: `syncSelView`,
- * `clearSelection`, `updateToolUI`.
+ * `clearSelection`, `updateToolUI`, `syncHistoryButtons`, `finishAdjust`.
  */
 import { $, loadImage } from '../platform/index.js';
 import { clamp } from '../shared/index.js';

@@ -2,11 +2,11 @@
 
 ## Owns
 - `boot.js` — composition root: `bind`, `boot`, configure mọi section, drawing engine + pointer/pan orchestration, `makeCanvas` (dùng bởi renderAdjustPreview), `sendToNott`.
-- `documents.js` — lifecycle doc: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, `seedPoster`, `seedMonogram`, `seedBands`, `previewDoc`, `applySizeModal`. Nhận deps: `syncSelView`, `clearSelection`, `updateToolUI`. (P5-9)
+- `documents.js` — lifecycle doc: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, `seedPoster`, `seedMonogram`, `seedBands`, `previewDoc`, `applySizeModal`. Nhận deps: `syncSelView`, `clearSelection`, `updateToolUI`, `syncHistoryButtons`, `finishAdjust`. (P5-9)
 - `geometry.js` — hình học bản vẽ: `updateDocMeta`, `afterGeometryChange`, `resizeImage`, `resizeCanvas`, `cropToSelection`, `flipDoc`, `rotateDoc`, `applyLayerTransform`. Nhận deps: `clearSelection`, `finishAdjust`, `pushDocHistory`, `pushLayerHistory`, `render`, `updateLayerThumb`. (P5-9)
 - `keymap.js` — `createKeyHandler`/`bindKeymap` (Escape, Ctrl+Z/Y/S/E/G/A/D/C/X/V/J/T/M, Delete, `[`/`]`, `0`, `1`, `?`, phím tắt tool, Space pan). Hành vi được **tiêm** qua deps.
 - `commands.js` — `createCommands(deps)` → `runCommand`; menubar chỉ định tuyến tên command.
-- `storage.js` — `fetch('/api/...')` tới `craf.py`, autosave, thumbnail, xuất ảnh.
+- `storage.js` — `fetch('/api/...')` tới `craf.py`, autosave (`markDirty`/`saveNow`/`waitForSave`/`flushSave`), thumbnail, xuất ảnh.
 - `index.js` — điểm vào duy nhất (`index.html` nạp file này), re-export cổng con và `import './boot.js'`.
 
 P5-9 đã merge: `documents.js`/`geometry.js` nhận deps boot-local qua `configureDocuments`/`configureGeometry` gọi một lần đầu `boot()`; `documents → geometry` một chiều, không vòng với `boot.js`.
