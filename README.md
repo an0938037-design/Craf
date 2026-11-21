@@ -86,7 +86,26 @@ craf.py          máy chủ HTTP + cầu Nott
 app/             giao diện (HTML/CSS/JS + font)
 library/         bản vẽ đã lưu
 .cache/          ảnh thu nhỏ của ảnh Nott
+tests/           test cho module thuần (core, shared, serialize)
+tools/           kiểm tra ranh giới section + thống kê nguồn
 ```
 
 Không có bước build: sửa section tương ứng trong `app/src/`, rồi tải lại trang.
 Điểm vào duy nhất là `app/src/shell/index.js` → `shell/boot.js`.
+
+## Kiểm thử
+
+```
+npm test
+```
+
+hoặc
+
+```
+node --test "tests/*.test.mjs"
+```
+
+Chỉ test các module thuần (không cần DOM): `core/color`, `core/geometry`,
+`core/mask`, `core/path`, `shared/util`, `model/serialize`. Không cần cài
+package nào; `package.json` chỉ khai báo `"type": "module"` và script test.
+
