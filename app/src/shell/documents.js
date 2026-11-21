@@ -68,6 +68,12 @@ export function openDoc(doc) {
   deps.clearSelection();
   syncAdjustUI();
   deps.updateToolUI();
+  /* Tài liệu vừa mở coi như đã lưu: xoá cờ bẩn và hẹn giờ autosave còn sót
+     của bản trước, nếu không nhãn "Đã lưu" sẽ nói dối và lần thoát sau lưu
+     thừa bản mới. */
+  clearTimeout(state.saveTimer);
+  state.saveTimer = 0;
+  state.dirty = false;
   setSaveState('saved');
   $('#btnDrawerSend').disabled = false;
 }

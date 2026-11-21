@@ -96,15 +96,20 @@ export async function saveNow() {
   const doc = state.doc;
   const rev = editRev;
   const payload = toPayload(doc, (l) => pngDataURL(l.canvas), thumbData());
+  /* Trạng thái "đã lưu / chưa lưu" chỉ thuộc về doc đang mở. Nếu người dùng
+     đổi bản vẽ trong lúc chờ server, đừng gắn nhãn cũ lên bản mới. */
+  const current = () => state.doc === doc;
   let ok = false;
   try {
     const res = await api('/api/projects', payload);
     ok = true;
-    if (editRev === rev) {
-      state.dirty = false;
-      setSaveState('saved');
-    } else {
-      setSaveState('dirty');
+    if (current()) {
+      if (editRev === rev) {
+        state.dirty = false;
+        setSaveState('saved');
+      } else {
+        setSaveState('dirty');
+      }
     }
     const entry = {
       id: doc.id, name: doc.name, w: doc.w, h: doc.h,
@@ -115,7 +120,7 @@ export async function saveNow() {
     state.projects.sort((a, b) => b.updatedAt - a.updatedAt);
     renderRecent();
   } catch (err) {
-    setSaveState('dirty');
+    if (current()) setSaveState('dirty');
     toast('Không lưu được: ' + err.message, 'err');
   } finally {
     state.saving = false;
