@@ -474,41 +474,50 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
   let historyChain = Promise.resolve();
   function enqueueHistory(run) {
     const next = historyChain.then(run, run);
-    historyChain = next.catch(() => {});
+    /* Nuốt lỗi để hàng đợi không kẹt, nhưng vẫn để lại dấu vết khi debug. */
+    historyChain = next.catch((err) => { console.warn('Craf: lỗi thao tác lịch sử', err); });
     return next;
   }
 
   async function applySnapshot(snap) {
-    if (!state.doc) return;
+    /* Giữ doc lúc bắt đầu: trong lúc chờ giải mã ảnh, người dùng có thể rời
+       studio hoặc mở bản khác. Khi đó phải dừng, không được gán snapshot cũ
+       vào doc mới (sẽ làm lớp của doc mới sai kích thước). */
+    const doc = state.doc;
+    if (!doc) return false;
     if (snap.kind === 'layer') {
-      const l = state.doc.layers.find((x) => x.id === snap.id);
-      if (!l) return;
+      const l = doc.layers.find((x) => x.id === snap.id);
+      if (!l) return false;
       const img = await loadImage(snap.src);
+      if (state.doc !== doc) return false;
       l.ctx.setTransform(1, 0, 0, 1, 0, 0);
       l.ctx.clearRect(0, 0, l.canvas.width, l.canvas.height);
       l.ctx.drawImage(img, 0, 0);
     } else {
-      if (snap.w && snap.h) { state.doc.w = snap.w; state.doc.h = snap.h; }
-      if (snap.bg) state.doc.bg = snap.bg;
+      if (snap.w && snap.h) { doc.w = snap.w; doc.h = snap.h; }
+      if (snap.bg) doc.bg = snap.bg;
       const layers = [];
       for (const item of snap.layers) {
-        const l = newLayer(state.doc.w, state.doc.h, item.name);
+        const img = await loadImage(item.src);
+        if (state.doc !== doc) return false;
+        const l = newLayer(doc.w, doc.h, item.name);
         /* Dùng lại id của snapshot để entry lịch sử mức lớp (vốn trỏ theo id)
            vẫn tìm được lớp sau khi khôi phục doc. */
         if (item.id) l.id = item.id;
         l.visible = item.visible;
         l.opacity = item.opacity;
         l.blend = item.blend;
-        const img = await loadImage(item.src);
         l.ctx.drawImage(img, 0, 0);
         layers.push(l);
       }
-      state.doc.layers = layers;
+      if (state.doc !== doc) return false;
+      doc.layers = layers;
       state.active = clamp(snap.active, 0, layers.length - 1);
-      $('#projectMeta').textContent = `${state.doc.w} × ${state.doc.h} PX`;
+      $('#projectMeta').textContent = `${doc.w} × ${doc.h} PX`;
       state.fitMode = true;
       requestAnimationFrame(() => fit());
     }
+    return true;
   }
 
   async function doUndo() {
