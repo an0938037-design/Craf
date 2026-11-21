@@ -443,10 +443,12 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     syncHistoryButtons();
   }
 
-  function pushLayerHistory() {
+  function pushLayerHistory(tag) {
     const l = activeLayer();
     if (!l) return;
-    pushLayer({ kind: 'layer', id: l.id, src: pngDataURL(l.canvas) });
+    const entry = { kind: 'layer', id: l.id, src: pngDataURL(l.canvas) };
+    if (tag) entry.tag = tag;
+    pushLayer(entry);
     syncHistoryButtons();
   }
 
@@ -752,16 +754,21 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     if (tool === 'text') { openTextEditor(e, pt); return; }
     const layer = activeLayer();
     if (!layer) return;
-    pushLayerHistory();
+    /* Nét cọ tô trực tiếp lên lớp ngay khi kéo nên entry lịch sử luôn khớp.
+       Hình khối chỉ vẽ ở lớp phủ, lúc chốt mới tô thật — nếu pointercancel
+       (hệ điều hành chen ngang) thì entry vừa đẩy là rỗng, phải bỏ theo tag. */
+    const isShape = tool !== 'brush' && tool !== 'eraser';
+    const histTag = isShape ? uid() : null;
+    pushLayerHistory(histTag);
     const clipped = state.sel.active;
     if (clipped) {
       layer.ctx.save();
       layer.ctx.clip(selPath(), 'evenodd');
     }
-    if (tool === 'brush' || tool === 'eraser') {
+    if (!isShape) {
       state.draw = { ...beginBrush(layer, pt, brushStyle(tool === 'eraser')), clipped };
     } else {
-      state.draw = { ...shapeBegin(layer, pt, { shift: e.shiftKey, alt: e.altKey }), clipped };
+      state.draw = { ...shapeBegin(layer, pt, { shift: e.shiftKey, alt: e.altKey }), clipped, histTag };
     }
     try { overlay.setPointerCapture(e.pointerId); } catch { /* synthetic or touch cancel */ }
     renderSoon();
@@ -999,7 +1006,14 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   overlay.addEventListener('pointercancel', () => {
     if (state.draw) {
-      if (state.draw.clipped) { try { state.draw.layer.ctx.restore(); } catch { /* ignore */ } }
+      const d = state.draw;
+      if (d.clipped) { try { d.layer.ctx.restore(); } catch { /* ignore */ } }
+      /* Hình khối chưa tô điểm nào: bỏ entry rỗng của phiên để Ctrl+Z sau đó
+         không phải bấm một lần vô ích. */
+      if (d.histTag) {
+        dropTagged(d.layer.id, d.histTag);
+        syncHistoryButtons();
+      }
       state.draw = null;
       state.selPreview = null;
       clearOverlay();
