@@ -16,7 +16,7 @@ import { api, markDirty, refresh, saveNow, setSaveState, waitForSave } from './s
 import { resizeImage, resizeCanvas } from './geometry.js';
 
 /* ------------------------------------------------------------------ deps */
-let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {}, syncHistoryButtons: () => {} };
+let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {}, syncHistoryButtons: () => {}, finishAdjust: () => {} };
 export function configureDocuments(d) { Object.assign(deps, d); }
 
 /* ------------------------------------------------------------------ start screen */
@@ -57,6 +57,9 @@ export function openDoc(doc) {
   requestAnimationFrame(() => fit());
   clearOverlay();
   deps.clearSelection();
+  /* Bản xem trước chỉnh màu thuộc tài liệu cũ: bỏ để không giữ canvas và
+     không áp nhầm sang lớp trùng id ở tài liệu mới. */
+  state.adjust = null;
   syncAdjustUI();
   deps.updateToolUI();
   setSaveState('saved');
@@ -89,11 +92,14 @@ export async function openProject(id) {
 }
 
 export async function goStart() {
+  /* Chốt bản xem trước chỉnh màu (nếu có) trước khi lưu và rời studio. */
+  deps.finishAdjust();
   /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio. */
   await waitForSave();
   if (state.dirty) await saveNow();
   state.doc = null;
   state.draw = null;
+  state.adjust = null;
   clearHistory();
   deps.syncHistoryButtons();
   document.body.dataset.mode = 'start';

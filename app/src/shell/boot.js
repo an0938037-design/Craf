@@ -1368,7 +1368,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   function boot() {
     /* Tiêm hàm boot-local cho documents/geometry — 1 lần, trước khi dùng. */
-    configureDocuments({ syncSelView, clearSelection, updateToolUI, syncHistoryButtons });
+    configureDocuments({ syncSelView, clearSelection, updateToolUI, syncHistoryButtons, finishAdjust });
     configureGeometry({ clearSelection, finishAdjust, pushDocHistory, pushLayerHistory, render, updateLayerThumb });
 
     document.body.dataset.mode = 'start';
