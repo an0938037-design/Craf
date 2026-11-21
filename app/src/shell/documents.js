@@ -8,7 +8,7 @@
  */
 import { $, loadImage } from '../platform/index.js';
 import { clamp } from '../shared/index.js';
-import { activate, docFromJSON, layerFromJSON, newDocData, state, uniqueProjectName } from '../model/index.js';
+import { activate, clearHistory, docFromJSON, layerFromJSON, newDocData, state, uniqueProjectName } from '../model/index.js';
 import { createLayer as newLayer } from '../pixel/index.js';
 import { applyView, clearOverlay, fit } from '../render/index.js';
 import { closeDrawer, closeSizeModal, renderLayers, renderPalette, sizeState, syncAdjustUI, toast } from '../ui/index.js';
@@ -16,7 +16,7 @@ import { api, markDirty, refresh, saveNow, setSaveState, waitForSave } from './s
 import { resizeImage, resizeCanvas } from './geometry.js';
 
 /* ------------------------------------------------------------------ deps */
-let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {} };
+let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {}, syncHistoryButtons: () => {} };
 export function configureDocuments(d) { Object.assign(deps, d); }
 
 /* ------------------------------------------------------------------ start screen */
@@ -44,6 +44,9 @@ export function createProject(name, w, h, seed) {
 
 export function openDoc(doc) {
   activate(doc);
+  /* Lịch sử thuộc về một tài liệu: mở bản khác thì không được undo sang bản cũ. */
+  clearHistory();
+  deps.syncHistoryButtons();
   deps.syncSelView(null);
   showStudio();
   $('#projectName').value = doc.name;
@@ -91,6 +94,8 @@ export async function goStart() {
   if (state.dirty) await saveNow();
   state.doc = null;
   state.draw = null;
+  clearHistory();
+  deps.syncHistoryButtons();
   document.body.dataset.mode = 'start';
   $('#viewStudio').hidden = true;
   $('#viewStart').hidden = false;

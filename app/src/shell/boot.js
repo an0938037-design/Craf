@@ -467,6 +467,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
   }
 
   async function undo() {
+    if (!state.doc) return;
     const snap = state.undo.pop();
     if (!snap) return;
     const inverse = snap.kind === 'layer'
@@ -480,6 +481,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
   }
 
   async function redo() {
+    if (!state.doc) return;
     const snap = state.redo.pop();
     if (!snap) return;
     const inverse = snap.kind === 'layer'
@@ -1366,7 +1368,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   function boot() {
     /* Tiêm hàm boot-local cho documents/geometry — 1 lần, trước khi dùng. */
-    configureDocuments({ syncSelView, clearSelection, updateToolUI });
+    configureDocuments({ syncSelView, clearSelection, updateToolUI, syncHistoryButtons });
     configureGeometry({ clearSelection, finishAdjust, pushDocHistory, pushLayerHistory, render, updateLayerThumb });
 
     document.body.dataset.mode = 'start';

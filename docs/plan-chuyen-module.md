@@ -252,7 +252,7 @@ thuần đã nằm ở section rank thấp hơn.
 - **P6-1** — Xoá `app/app.js`, cập nhật `docs/architecture.md` + README: ✅ (`a1c9e47`).
 - **P6-2** — Cổng ranh giới: ✅ `node tools/check-boundaries.mjs` → `KẾT QUẢ: SẠCH` (9 section, 66 file, 26 cạnh).
 - **P6-3** — Baseline/hồi quy: 9 hash doc-space khớp 100% bảng P2 trong `docs/contracts/mask-baseline.md` (chạy lại 2026-11-20). A12 (save → reload → mở lại) đã chạy lại: doc 1 lớp sau brush `fffe201d` → autosave → reload → mở lại vẫn `fffe201d`, vùng chọn không khôi phục, 0 lỗi console. Đối chứng soft/fill trên HEAD và `403b27c`: soft `285884f7` cả hai bên (baseline P4 `cfe7bfbc` không tái tạo được trên code cũ ⇒ ghi nhận sai, không hồi quy); fill `bf079686`, undo `7ab27801` khớp cả hai bên và baseline. Sau khi merge P5-9 (`c6a43f3`): smoke lại blank/brush/undo/redo/flip/rotate và mở project đều đúng (xem bảng P6 trong `mask-baseline.md`).
-- **P7** — Sửa lỗi phát sinh sau P6 (2026-11-20): (1) panel adjust không cho kéo giá trị đầu tiên nữa (`ensureAdjust` không ghi đè `syncAdjustUI` trước khi `readAdjustUI` đọc slider); (2) autosave có thể bỏ mất thay đổi mới trong lúc POST đang chờ (`editRev` + retry qua `waitForSave`).
+- **P7** — Sửa lỗi phát sinh sau P6 (2026-11-20): (1) panel adjust không cho kéo giá trị đầu tiên nữa (`ensureAdjust` không ghi đè `syncAdjustUI` trước khi `readAdjustUI` đọc slider); (2) autosave có thể bỏ mất thay đổi mới trong lúc POST đang chờ (`editRev` + retry qua `waitForSave`); (3) lịch sử undo/redo giờ thuộc về một tài liệu — `openDoc` và `goStart` gọi `clearHistory()`, `undo`/`redo` chặn khi `state.doc` rỗng (trước đó Ctrl+Z ở màn hình bắt đầu ném lỗi và mở bản khác vẫn undo được sang bản cũ).
 
 ## Giai đoạn 6 — Khoá lại
 
