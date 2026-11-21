@@ -14,6 +14,11 @@ import {
   maskSegments, segmentsToCommands,
 } from '../app/src/core/index.js';
 import { clamp, pad, esc, fmt, uid } from '../app/src/shared/index.js';
+import { createEmitter } from '../app/src/shared/emitter.js';
+import {
+  state, clearHistory, pushDoc, pushLayer, canUndo, canRedo, HISTORY_LIMITS,
+  sheetSize, uniqueProjectName, layerMeta,
+} from '../app/src/model/index.js';
 import { toPayload, docSnapshot, docFromJSON, layerFromJSON, DEFAULT_BG } from '../app/src/model/serialize.js';
 
 /* ------------------------------------------------------------------ color */
@@ -197,6 +202,103 @@ test('mask rỗng → 0 cạnh, 0 lệnh', () => {
   const segs = maskSegments(maskCreate(4, 4), 4, 4);
   assert.equal(segs.length, 0);
   assert.equal(segmentsToCommands(segs).length, 0);
+});
+
+/* ------------------------------------------------------------------ emitter */
+
+test('emitter: on/emit/off/clear', () => {
+  const bus = createEmitter();
+  const got = [];
+  const off = bus.on('paint', (p) => got.push(p));
+  bus.emit('paint', 1);
+  bus.emit('other', 9);
+  assert.deepEqual(got, [1]);
+  off();
+  bus.emit('paint', 2);
+  assert.deepEqual(got, [1]);
+
+  const a = [];
+  bus.on('x', () => a.push('a'));
+  bus.on('x', () => a.push('b'));
+  bus.emit('x');
+  assert.deepEqual(a, ['a', 'b']);
+  bus.clear('x');
+  bus.emit('x');
+  assert.deepEqual(a, ['a', 'b']);
+
+  bus.on('y', () => a.push('y'));
+  bus.clear();
+  bus.emit('y');
+  assert.deepEqual(a, ['a', 'b']);
+});
+
+test('emitter: off hàm lạ và emit channel rỗng không lỗi', () => {
+  const bus = createEmitter();
+  assert.doesNotThrow(() => bus.off('none', () => {}));
+  assert.doesNotThrow(() => bus.emit('none'));
+});
+
+/* ------------------------------------------------------------------ history */
+
+test('history: push/clear/canUndo/canRedo', () => {
+  clearHistory();
+  assert.equal(canUndo(), false);
+  assert.equal(canRedo(), false);
+  pushDoc({ kind: 'doc' });
+  assert.equal(canUndo(), true);
+  state.redo.push({ kind: 'doc' });
+  assert.equal(canRedo(), true);
+  clearHistory();
+  assert.equal(canUndo(), false);
+  assert.equal(canRedo(), false);
+});
+
+test('history: trần doc và layer, entry mới xoá redo', () => {
+  clearHistory();
+  for (let i = 0; i < HISTORY_LIMITS.doc + 5; i++) pushDoc({ kind: 'doc', n: i });
+  assert.equal(state.undo.length, HISTORY_LIMITS.doc);
+  assert.equal(state.undo[0].n, 5);
+  assert.equal(state.undo[state.undo.length - 1].n, HISTORY_LIMITS.doc + 4);
+
+  clearHistory();
+  for (let i = 0; i < HISTORY_LIMITS.layer + 3; i++) pushLayer({ kind: 'layer', id: 'l', src: 's' + i });
+  assert.equal(state.undo.length, HISTORY_LIMITS.layer);
+  assert.equal(state.undo[0].src, 's3');
+
+  clearHistory();
+  pushDoc({ kind: 'doc', n: 0 });
+  state.redo.push({ kind: 'doc', n: 'redo' });
+  pushDoc({ kind: 'doc', n: 1 });
+  assert.equal(state.redo.length, 0);
+});
+
+/* ------------------------------------------------------------------ model helpers */
+
+test('sheetSize giữ tỉ lệ trong ô 64/88', () => {
+  assert.deepEqual(sheetSize({ w: 1080, h: 1350 }), { w: 64, h: 80 });
+  assert.deepEqual(sheetSize({ w: 1080, h: 1920 }), { w: 64, h: 88 });
+  assert.deepEqual(sheetSize({ w: 1350, h: 1080 }), { w: 80, h: 64 });
+  assert.deepEqual(sheetSize({ w: 800, h: 800 }), { w: 64, h: 64 });
+  const wide = sheetSize({ w: 3000, h: 1000 });
+  assert.equal(wide.w, 88);
+  assert.equal(wide.h, 64);
+});
+
+test('uniqueProjectName thêm số khi trùng', () => {
+  const projects = [{ name: 'A' }, { name: 'A 2' }];
+  assert.equal(uniqueProjectName(projects, 'B'), 'B');
+  assert.equal(uniqueProjectName(projects, 'A'), 'A 3');
+  assert.equal(uniqueProjectName([], 'A'), 'A');
+});
+
+test('layerMeta mặc định và id riêng', () => {
+  const a = layerMeta();
+  const b = layerMeta('Lớp 2');
+  assert.deepEqual({ name: a.name, visible: a.visible, opacity: a.opacity, blend: a.blend }, {
+    name: 'Lớp', visible: true, opacity: 100, blend: 'source-over',
+  });
+  assert.equal(b.name, 'Lớp 2');
+  assert.notEqual(a.id, b.id);
 });
 
 /* ------------------------------------------------------------------ serialize */

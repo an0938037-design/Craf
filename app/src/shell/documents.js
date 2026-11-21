@@ -43,9 +43,8 @@ export function createProject(name, w, h, seed) {
 }
 
 export function openDoc(doc) {
-  activate(doc);
-  /* Lịch sử thuộc về một tài liệu: mở bản khác thì không được undo sang bản cũ. */
-  clearHistory();
+  activate(doc); /* activate() đã xoá undo/redo và state.adjust của tài liệu cũ. */
+  /* Đồng bộ nút vì stack vừa bị xoá nhưng DOM còn trạng thái của bản trước. */
   deps.syncHistoryButtons();
   deps.syncSelView(null);
   showStudio();
@@ -57,9 +56,6 @@ export function openDoc(doc) {
   requestAnimationFrame(() => fit());
   clearOverlay();
   deps.clearSelection();
-  /* Bản xem trước chỉnh màu thuộc tài liệu cũ: bỏ để không giữ canvas và
-     không áp nhầm sang lớp trùng id ở tài liệu mới. */
-  state.adjust = null;
   syncAdjustUI();
   deps.updateToolUI();
   setSaveState('saved');

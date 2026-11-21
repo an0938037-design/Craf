@@ -15,7 +15,7 @@ import { state } from './store.js';
 export function sheetSize(p) {
   const ratio = p.w / p.h;
   if (ratio >= 1) return { w: Math.min(88, 64 * ratio), h: 64 };
-  return { w: 64, h: Math.min(64, 64 / ratio) };
+  return { w: 64, h: Math.min(88, 64 / ratio) };
 }
 
 /** Lớp đang chọn của doc hiện tại, hoặc null. */
