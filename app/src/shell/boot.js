@@ -299,7 +299,10 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
         origSrc: pngDataURL(layer.canvas),
         vals: adjustDefaults(),
         pushed: false,
-        tag: null,
+        /* Tag đánh dấu entry của riêng phiên chỉnh này: entry có thể bị Ctrl+Z
+           đẩy sang redo rồi Ctrl+Y tạo lại thành object mới, nên lúc Huỷ phải
+           nhận theo tag chứ không đoán theo phần tử đầu stack. */
+        tag: uid(),
       };
       /* Không syncAdjustUI ở đây: readAdjustUI gọi ensureAdjust TRƯỚC khi đọc
          slider, sync sẽ ghi đè giá trị người dùng vừa kéo ở lần chỉnh đầu tiên.
@@ -318,10 +321,6 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     const layer = state.doc && state.doc.layers.find((l) => l.id === a.id);
     if (!layer) return;
     if (!a.pushed) {
-      /* Tag đánh dấu entry của riêng phiên chỉnh này: entry có thể bị Ctrl+Z
-         đẩy sang redo rồi Ctrl+Y tạo lại thành object mới, nên lúc Huỷ phải
-         nhận theo tag chứ không đoán theo phần tử đầu stack. */
-      a.tag = uid();
       pushLayerSnapshot(layer, a.origSrc, a.tag);
       a.pushed = true;
     }
@@ -363,22 +362,39 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     renderAdjustPreview();
   }
 
+  /**
+   * Sau undo/redo, lớp có thể đã đổi ngoài phiên adjust. Nếu entry của phiên
+   * không còn nằm trên undo (preview đã bị hoàn tác), lấy ảnh hiện tại làm mốc
+   * mới: lần kéo slider kế tiếp dựng lại preview từ đúng trạng thái đó, không
+   * hồi sinh nét đã undo và vẫn đẩy lại entry lịch sử.
+   */
+  function rebaseAdjustAfterHistory() {
+    const a = state.adjust;
+    if (!a || !state.doc) return;
+    if (state.undo.some((e) => e && e.tag === a.tag)) return;
+    const layer = state.doc.layers.find((l) => l.id === a.id);
+    if (!layer) return;
+    a.original = copyCanvas(layer.canvas);
+    a.origSrc = pngDataURL(layer.canvas);
+    a.pushed = false;
+  }
+
   function finishAdjust(cancel = false) {
     const a = state.adjust;
     if (!a) return;
     const layer = state.doc && state.doc.layers.find((l) => l.id === a.id);
-    if (cancel && layer) {
-      layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      layer.ctx.globalAlpha = 1;
-      layer.ctx.globalCompositeOperation = 'source-over';
-      layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
-      layer.ctx.drawImage(a.original, 0, 0);
-      if (a.pushed) {
-        /* Huỷ chỉnh màu phải bỏ đúng entry của phiên này, ở undo hoặc redo —
-           không pop phần tử đầu stack (có thể là entry hợp lệ khác cùng lớp). */
-        dropTagged(a.id, a.tag);
-        a.pushed = false;
+    if (cancel) {
+      if (layer) {
+        layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        layer.ctx.globalAlpha = 1;
+        layer.ctx.globalCompositeOperation = 'source-over';
+        layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+        layer.ctx.drawImage(a.original, 0, 0);
       }
+      /* Bỏ entry của phiên ở cả undo lẫn redo — kể cả khi preview đã bị Ctrl+Z
+         đẩy sang redo (lúc đó a.pushed = false sau rebase). */
+      dropTagged(a.id, a.tag);
+      a.pushed = false;
       syncHistoryButtons();
     }
     state.adjust = null;
@@ -500,6 +516,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     state.redo.push(inverse);
     await applySnapshot(snap);
     if (state.doc !== doc) return;
+    rebaseAdjustAfterHistory();
     clearSelection();
     renderLayers(); render(); markDirty();
     syncHistoryButtons();
@@ -518,6 +535,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     state.undo.push(inverse);
     await applySnapshot(snap);
     if (state.doc !== doc) return;
+    rebaseAdjustAfterHistory();
     clearSelection();
     renderLayers(); render(); markDirty();
     syncHistoryButtons();
