@@ -437,7 +437,18 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     return l ? pngDataURL(l.canvas) : null;
   }
 
+  /* Ứng dụng snapshot là async (giải mã PNG). Nếu người dùng bấm Ctrl+Z liên
+     tiếp, các lần chạy song song sẽ tính snapshot nghịch từ canvas chưa cập
+     nhật và làm hỏng stack; xếp hàng để mỗi lần chạy xong mới tới lượt sau. */
+  let historyChain = Promise.resolve();
+  function enqueueHistory(run) {
+    const next = historyChain.then(run, run);
+    historyChain = next.catch(() => {});
+    return next;
+  }
+
   async function applySnapshot(snap) {
+    if (!state.doc) return;
     if (snap.kind === 'layer') {
       const l = state.doc.layers.find((x) => x.id === snap.id);
       if (!l) return;
@@ -466,8 +477,9 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     }
   }
 
-  async function undo() {
+  async function doUndo() {
     if (!state.doc) return;
+    const doc = state.doc;
     const snap = state.undo.pop();
     if (!snap) return;
     const inverse = snap.kind === 'layer'
@@ -475,13 +487,15 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       : snapshotDoc();
     state.redo.push(inverse);
     await applySnapshot(snap);
+    if (state.doc !== doc) return;
     clearSelection();
     renderLayers(); render(); markDirty();
     syncHistoryButtons();
   }
 
-  async function redo() {
+  async function doRedo() {
     if (!state.doc) return;
+    const doc = state.doc;
     const snap = state.redo.pop();
     if (!snap) return;
     const inverse = snap.kind === 'layer'
@@ -489,9 +503,20 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       : snapshotDoc();
     state.undo.push(inverse);
     await applySnapshot(snap);
+    if (state.doc !== doc) return;
     clearSelection();
     renderLayers(); render(); markDirty();
     syncHistoryButtons();
+  }
+
+  function undo() {
+    if (!state.doc) return;
+    return enqueueHistory(doUndo);
+  }
+
+  function redo() {
+    if (!state.doc) return;
+    return enqueueHistory(doRedo);
   }
 
   function syncHistoryButtons() {
