@@ -543,11 +543,16 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   function undo() {
     if (!state.doc) return;
+    /* Đang giữ nút vẽ: chưa chốt nét, hoàn tác lúc này sẽ khôi phục canvas
+       dưới nét đang vẽ rồi nhả chuột ghi đè lại — stack hỏng và nét không
+       vào lịch sử. Bỏ qua, nhả chuột xong mới hoàn tác được. */
+    if (state.draw) return;
     return enqueueHistory(doUndo);
   }
 
   function redo() {
     if (!state.doc) return;
+    if (state.draw) return;
     return enqueueHistory(doRedo);
   }
 
