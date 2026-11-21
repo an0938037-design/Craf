@@ -704,7 +704,16 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   async function importImageData(url, name) {
     if (!state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
+    /* Giữ doc lúc bắt đầu: ảnh có thể đang giải mã khi người dùng mở bản khác
+       hoặc về màn hình bắt đầu. Khi đó bỏ ảnh, không dán vào bản mới. */
+    const doc = state.doc;
     const img = await loadImage(url);
+    if (state.doc !== doc) {
+      /* Về màn hình bắt đầu thì im lặng; mở bản khác thì báo để không tưởng
+         ảnh đã vào bản mới. */
+      if (state.doc) toast('Đã đổi bản vẽ — bỏ ảnh đang nhập', 'warn', 2400);
+      return;
+    }
     finishAdjust();
     pushDocHistory();
     let base = (name || 'Ảnh').replace(/\.[a-z0-9]+$/i, '').trim() || 'Ảnh';
