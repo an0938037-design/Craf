@@ -1029,7 +1029,12 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     if (state.draw) endDraw(e);
   });
 
-  overlay.addEventListener('pointercancel', () => {
+  /* Huỷ phiên kéo đang mở. Dùng cho pointercancel và cho lúc cửa sổ mất focus /
+     tab bị ẩn — khi đó trình duyệt có thể không gửi pointerup, làm state.draw
+     hoặc state.panning kẹt và chặn Ctrl+Z. */
+  function cancelPointerSession() {
+    if (state.panning) endPan();
+    if (state.guideDrag) { state.guideDrag = null; drawAnts(); }
     if (state.draw) {
       const d = state.draw;
       if (d.clipped) { try { d.layer.ctx.restore(); } catch { /* ignore */ } }
@@ -1043,9 +1048,14 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       state.selPreview = null;
       clearOverlay();
       render();
+    } else {
+      state.selPreview = null;
     }
-    state.panning = null;
-  });
+  }
+
+  overlay.addEventListener('pointercancel', cancelPointerSession);
+  window.addEventListener('blur', cancelPointerSession);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelPointerSession(); });
 
   overlay.addEventListener('pointerleave', () => { hideRing(); $('#cursorPos').textContent = 'X —  Y —'; });
   overlay.addEventListener('pointerenter', () => { showRing(); });
