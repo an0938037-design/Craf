@@ -48,6 +48,9 @@ export function docSnapshot(doc, active, layerSrc) {
     h: doc.h,
     bg: doc.bg,
     layers: doc.layers.map((l) => ({
+      /* Giữ id: entry mức lớp đẩy trước một thao tác mức doc (thêm/xoá lớp,
+         resize, lật…) phải tìm lại đúng lớp sau khi khôi phục doc. */
+      id: l.id,
       name: l.name,
       visible: l.visible,
       opacity: l.opacity,

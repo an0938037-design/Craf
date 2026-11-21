@@ -434,8 +434,8 @@ function demoDoc() {
   return {
     id: 'craf-test', name: 'Bản thử', w: 100, h: 80, bg: '#FFFFFF', createdAt: 123,
     layers: [
-      { name: 'Lớp 1', visible: true, opacity: 100, blend: 'source-over' },
-      { name: 'Lớp 2', visible: false, opacity: 40, blend: 'multiply' },
+      { id: 'l1', name: 'Lớp 1', visible: true, opacity: 100, blend: 'source-over' },
+      { id: 'l2', name: 'Lớp 2', visible: false, opacity: 40, blend: 'multiply' },
     ],
   };
 }
@@ -464,6 +464,8 @@ test('docSnapshot gói kind=doc + active', () => {
   assert.equal(snap.layers.length, 2);
   assert.equal(snap.layers[0].src, 'src:Lớp 1');
   assert.equal(snap.layers[1].opacity, 40);
+  /* Snapshot lịch sử giữ id lớp để entry mức lớp còn trỏ đúng sau khi khôi phục doc. */
+  assert.deepEqual(snap.layers.map((l) => l.id), ['l1', 'l2']);
 });
 
 test('docFromJSON mặc định bg/createdAt/layers', () => {

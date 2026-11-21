@@ -490,6 +490,9 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       const layers = [];
       for (const item of snap.layers) {
         const l = newLayer(state.doc.w, state.doc.h, item.name);
+        /* Dùng lại id của snapshot để entry lịch sử mức lớp (vốn trỏ theo id)
+           vẫn tìm được lớp sau khi khôi phục doc. */
+        if (item.id) l.id = item.id;
         l.visible = item.visible;
         l.opacity = item.opacity;
         l.blend = item.blend;
