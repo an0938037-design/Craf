@@ -165,7 +165,10 @@ export function runExport() {
     const transparent = fmt !== 'jpeg' && $('#exportAlpha').checked;
     const c = compositeCanvas(w, h, transparent);
     const q = clamp(parseInt($('#exportQuality').value, 10) / 100, 0.4, 1);
-    const name = ($('#exportName').value || state.doc.name || 'craf').replace(/[\\/:*?"<>|]+/g, '').trim() || 'craf';
+    /* Tên trống hoặc toàn khoảng trắng thì lấy tên bản vẽ, cuối cùng mới 'craf'. */
+    const typed = ($('#exportName').value || '').trim();
+    const raw = typed || state.doc.name || 'craf';
+    const name = raw.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim() || 'craf';
     const a = document.createElement('a');
     a.download = name + '.' + ext;
     a.href = c.toDataURL(mime, q);
