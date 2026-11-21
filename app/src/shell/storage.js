@@ -68,6 +68,20 @@ export async function waitForSave() {
   while (state.saving) await new Promise((r) => setTimeout(r, 40));
 }
 
+/**
+ * Đợi lưu xong rồi lưu nốt thay đổi còn bẩn. Tối đa 3 vòng để không treo khi
+ * server lỗi hoặc người dùng tiếp tục vẽ trong lúc chờ.
+ * @returns {Promise<boolean>} true nếu đã sạch (không còn thay đổi chưa lưu).
+ */
+export async function flushSave() {
+  for (let i = 0; i < 3; i++) {
+    await waitForSave();
+    if (!state.dirty) return true;
+    await saveNow();
+  }
+  return !state.dirty;
+}
+
 export async function saveNow() {
   clearTimeout(state.saveTimer);
   state.saveTimer = 0;

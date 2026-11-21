@@ -12,7 +12,7 @@ import { activate, clearHistory, docFromJSON, layerFromJSON, newDocData, state, 
 import { createLayer as newLayer } from '../pixel/index.js';
 import { applyView, clearOverlay, fit } from '../render/index.js';
 import { closeDrawer, closeSizeModal, renderLayers, renderPalette, sizeState, syncAdjustUI, toast } from '../ui/index.js';
-import { api, markDirty, refresh, saveNow, setSaveState, waitForSave } from './storage.js';
+import { api, flushSave, markDirty, refresh, saveNow, setSaveState } from './storage.js';
 import { resizeImage, resizeCanvas } from './geometry.js';
 
 /* ------------------------------------------------------------------ deps */
@@ -91,8 +91,7 @@ export async function goStart() {
   /* Chốt bản xem trước chỉnh màu (nếu có) trước khi lưu và rời studio. */
   deps.finishAdjust();
   /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio. */
-  await waitForSave();
-  if (state.dirty) await saveNow();
+  await flushSave();
   state.doc = null;
   state.draw = null;
   state.adjust = null;
@@ -113,13 +112,15 @@ export function showStudio() {
 }
 
 /* ------------------------------------------------------------------ size modal */
-export function applySizeModal() {
+export async function applySizeModal() {
   const w = clamp(parseInt($('#sizeW').value, 10) || 1080, 16, 6000);
   const h = clamp(parseInt($('#sizeH').value, 10) || 1350, 16, 6000);
   closeSizeModal();
   const { mode } = sizeState();
   if (mode === 'new') {
-    saveNow();
+    /* Tạo bản mới trong studio: phải lưu xong bản cũ trước khi thay doc,
+       nếu không thay đổi đang chờ autosave sẽ mất. */
+    await flushSave();
     createProject(`Bản vẽ ${w}×${h}`, w, h);
   } else if (mode === 'image') {
     resizeImage(w, h);

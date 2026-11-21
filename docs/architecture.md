@@ -40,6 +40,17 @@ node tools/check-boundaries.mjs
 
 Exit 0 = sạch. Exit 1 = có cạnh cấm, import ngược tầng, hoặc vòng phụ thuộc. Chạy trước mỗi commit.
 
+## Kiểm thử
+
+```powershell
+npm test
+```
+
+hoặc `node --test "tests/*.test.mjs"`. Chỉ phủ module thuần (core, shared,
+`model/history`, `model/doc`, `model/layers`, `model/serialize`) vì phần còn
+lại cần DOM. Không dependency, không build — `package.json` chỉ có
+`"type": "module"` và script test.
+
 ## Thêm section mới
 
 1. Sửa `boundaries.json`: thêm vào `layers` đúng vị trí rank, thêm object trong `sections`.

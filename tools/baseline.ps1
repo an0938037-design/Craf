@@ -60,6 +60,7 @@ if (Test-Path -LiteralPath $srcRoot) {
 }
 
 $rows += Get-Stats (Join-Path $Repo 'tools') 'tools'
+$rows += Get-Stats (Join-Path $Repo 'tests') 'tests'
 $rows | Format-Table -AutoSize | Out-String -Width 120 | Write-Output
 
 if (Test-Path -LiteralPath (Join-Path $Repo '.git')) {
