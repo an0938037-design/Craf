@@ -942,6 +942,20 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
   }
 
   /* text */
+  /* Chốt/dọn ô nhập chữ. Gọi khi đóng bằng Enter/Escape và khi đổi tài liệu —
+     nếu không, ô chữ còn treo qua doc mới và Enter sau đó ghi chữ vào doc mới. */
+  function closeTextEditor() {
+    const wrap = $('#textWrap');
+    const input = $('#textInput');
+    if (!wrap || wrap.hidden) { state.textAt = null; return; }
+    wrap.hidden = true; /* ẩn trước để onblur không commit lần nữa */
+    state.textAt = null;
+    if (input) {
+      input.value = '';
+      if (document.activeElement === input) input.blur();
+    }
+  }
+
   function openTextEditor(e, pt) {
     const wrap = $('#textWrap');
     const input = $('#textInput');
@@ -952,8 +966,10 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     wrap.hidden = false;
     positionTextEditor();
     input.focus();
-    const close = () => { wrap.hidden = true; state.textAt = null; };
+    const close = () => closeTextEditor();
     const commit = () => {
+      /* Ô đã bị đóng (đổi tài liệu, Escape, blur) thì không ghi gì nữa. */
+      if (wrap.hidden || !state.textAt) return;
       const text = input.value.replace(/\s+$/, '');
       if (text.trim()) {
         pushLayerHistory();
@@ -1475,7 +1491,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   function boot() {
     /* Tiêm hàm boot-local cho documents/geometry — 1 lần, trước khi dùng. */
-    configureDocuments({ syncSelView, clearSelection, updateToolUI, syncHistoryButtons, finishAdjust });
+    configureDocuments({ syncSelView, clearSelection, updateToolUI, syncHistoryButtons, finishAdjust, closeTextEditor });
     configureGeometry({ clearSelection, finishAdjust, pushDocHistory, pushLayerHistory, render, updateLayerThumb });
 
     document.body.dataset.mode = 'start';

@@ -4,7 +4,8 @@
  *
  * Hàm boot-local của `boot.js` dùng ở đây được tiêm 1 lần qua
  * `configureDocuments({...})` trong `boot()` trước khi gọi: `syncSelView`,
- * `clearSelection`, `updateToolUI`, `syncHistoryButtons`, `finishAdjust`.
+ * `clearSelection`, `updateToolUI`, `syncHistoryButtons`, `finishAdjust`,
+ * `closeTextEditor`.
  */
 import { $, loadImage } from '../platform/index.js';
 import { clamp } from '../shared/index.js';
@@ -16,7 +17,7 @@ import { api, flushSave, markDirty, refresh, saveNow, setSaveState } from './sto
 import { resizeImage, resizeCanvas } from './geometry.js';
 
 /* ------------------------------------------------------------------ deps */
-let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {}, syncHistoryButtons: () => {}, finishAdjust: () => {} };
+let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {}, syncHistoryButtons: () => {}, finishAdjust: () => {}, closeTextEditor: () => {} };
 export function configureDocuments(d) { Object.assign(deps, d); }
 
 /* ------------------------------------------------------------------ start screen */
@@ -43,6 +44,9 @@ export function createProject(name, w, h, seed) {
 }
 
 export function openDoc(doc) {
+  /* Ô nhập chữ đang mở thuộc tài liệu cũ: đóng trước khi thay doc để Enter
+     sau đó không ghi chữ vào tài liệu mới. */
+  deps.closeTextEditor();
   activate(doc); /* activate() đã xoá undo/redo và state.adjust của tài liệu cũ. */
   /* Đồng bộ nút vì stack vừa bị xoá nhưng DOM còn trạng thái của bản trước. */
   deps.syncHistoryButtons();
@@ -88,7 +92,9 @@ export async function openProject(id) {
 }
 
 export async function goStart() {
-  /* Chốt bản xem trước chỉnh màu (nếu có) trước khi lưu và rời studio. */
+  /* Bỏ ô nhập chữ đang mở (không ghi vào tài liệu), rồi chốt bản xem trước
+     chỉnh màu trước khi lưu và rời studio. */
+  deps.closeTextEditor();
   deps.finishAdjust();
   /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio. */
   await flushSave();

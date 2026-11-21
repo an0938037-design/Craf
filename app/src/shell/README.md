@@ -2,7 +2,7 @@
 
 ## Owns
 - `boot.js` — composition root: `bind`, `boot`, configure mọi section, drawing engine + pointer/pan orchestration, `makeCanvas` (dùng bởi renderAdjustPreview), `sendToNott`.
-- `documents.js` — lifecycle doc: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, `seedPoster`, `seedMonogram`, `seedBands`, `previewDoc`, `applySizeModal`. Nhận deps: `syncSelView`, `clearSelection`, `updateToolUI`, `syncHistoryButtons`, `finishAdjust`. (P5-9)
+- `documents.js` — lifecycle doc: `createProject`, `openDoc`, `openProject`, `goStart`, `showStudio`, `createTemplate`, `seedPoster`, `seedMonogram`, `seedBands`, `previewDoc`, `applySizeModal`. Nhận deps: `syncSelView`, `clearSelection`, `updateToolUI`, `syncHistoryButtons`, `finishAdjust`, `closeTextEditor`. (P5-9)
 - `geometry.js` — hình học bản vẽ: `updateDocMeta`, `afterGeometryChange`, `resizeImage`, `resizeCanvas`, `cropToSelection`, `flipDoc`, `rotateDoc`, `applyLayerTransform`. Nhận deps: `clearSelection`, `finishAdjust`, `pushDocHistory`, `pushLayerHistory`, `render`, `updateLayerThumb`. (P5-9)
 - `keymap.js` — `createKeyHandler`/`bindKeymap` (Escape, Ctrl+Z/Y/S/E/G/A/D/C/X/V/J/T/M, Delete, `[`/`]`, `0`, `1`, `?`, phím tắt tool, Space pan). Hành vi được **tiêm** qua deps.
 - `commands.js` — `createCommands(deps)` → `runCommand`; menubar chỉ định tuyến tên command.
