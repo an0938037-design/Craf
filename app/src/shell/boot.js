@@ -181,16 +181,19 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     select: (i) => selectLayer(i),
     selectContent: () => selectLayerContent(),
     toggleVisible: (i) => {
+      finishAdjust();
       pushDocHistory();
       state.doc.layers[i].visible = !state.doc.layers[i].visible;
       renderLayers(); render(); markDirty();
     },
     rename: (i, name) => {
+      finishAdjust();
       pushDocHistory();
       state.doc.layers[i].name = name;
       markDirty();
     },
     reorder: (from, to) => {
+      finishAdjust();
       pushDocHistory();
       const moved = state.doc.layers.splice(from, 1)[0];
       state.doc.layers.splice(to, 0, moved);
@@ -1259,17 +1262,38 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     $('#btnLayerMerge').addEventListener('click', mergeDown);
     $('#btnLayerDel').addEventListener('click', deleteLayer);
     $('#layerBlend').addEventListener('change', () => {
+      finishAdjust();
       pushDocHistory();
       activeLayer().blend = $('#layerBlend').value;
       render(); markDirty();
     });
+    /* Độ mờ: mỗi phiên kéo slider là một bước lịch sử (snapshot doc chụp lúc
+       bắt đầu), không đẩy entry mỗi tick. Trước đây slider không vào lịch sử
+       nên Ctrl+Z nhảy qua và hoàn tác mất nét vẽ phía trước. */
+    let opacityEdit = null;
+    const beginOpacityEdit = () => {
+      if (opacityEdit || !state.doc) return;
+      finishAdjust();
+      const layer = activeLayer();
+      if (!layer) return;
+      opacityEdit = { snap: snapshotDoc(), val: layer.opacity, pushed: false };
+    };
+    $('#layerOpacity').addEventListener('focus', beginOpacityEdit);
+    $('#layerOpacity').addEventListener('pointerdown', beginOpacityEdit);
+    $('#layerOpacity').addEventListener('blur', () => { opacityEdit = null; });
     $('#layerOpacity').addEventListener('input', () => {
+      beginOpacityEdit();
       const v = parseInt($('#layerOpacity').value, 10);
       $('#layerOpacityVal').textContent = v + '%';
       setFill($('#layerOpacity'), v);
       activeLayer().opacity = v;
       const row = $(`.layer-row[data-index="${state.active}"] .layer-op`);
       if (row) row.textContent = v;
+      if (opacityEdit && !opacityEdit.pushed && v !== opacityEdit.val) {
+        pushDoc(opacityEdit.snap);
+        opacityEdit.pushed = true;
+        syncHistoryButtons();
+      }
       render(); markDirty();
     });
 
