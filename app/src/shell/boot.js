@@ -1509,6 +1509,11 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       setTool,
     });
     document.addEventListener('beforeunload', () => { if (state.doc && state.dirty) saveNow(); });
+    /* Ẩn tab / thu nhỏ cửa sổ: trình duyệt bóp timer nên autosave 1 giây có thể
+       bị hoãn rất lâu — lưu ngay để không mất thay đổi. */
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.doc && state.dirty) saveNow();
+    });
   }
 
   function boot() {
