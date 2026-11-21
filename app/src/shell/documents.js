@@ -20,6 +20,10 @@ import { resizeImage, resizeCanvas } from './geometry.js';
 let deps = { syncSelView: () => {}, clearSelection: () => {}, updateToolUI: () => {}, syncHistoryButtons: () => {}, finishAdjust: () => {}, closeTextEditor: () => {} };
 export function configureDocuments(d) { Object.assign(deps, d); }
 
+/* Mỗi lần đổi tài liệu tăng số này; `openProject` đang nạp dở thấy số đổi thì
+   dừng, để bản mới tạo / bản mở sau không bị bản nạp chậm ghi đè. */
+let openSeq = 0;
+
 /* ------------------------------------------------------------------ start screen */
 /* Màn hình bắt đầu đã sang `ui/start.js`; ở đây chỉ tiêm hành động. */
 
@@ -44,6 +48,8 @@ export function createProject(name, w, h, seed) {
 }
 
 export function openDoc(doc) {
+  /* Tài liệu mới thay thế mọi lần nạp project đang dở. */
+  openSeq++;
   /* Ô nhập chữ đang mở thuộc tài liệu cũ: đóng trước khi thay doc để Enter
      sau đó không ghi chữ vào tài liệu mới. */
   deps.closeTextEditor();
@@ -67,8 +73,10 @@ export function openDoc(doc) {
 }
 
 export async function openProject(id) {
+  const seq = ++openSeq;
   try {
     const data = await api('/library/' + encodeURIComponent(id) + '.json');
+    if (seq !== openSeq) return;
     const doc = docFromJSON(data);
     for (const raw of data.layers || []) {
       const l = layerFromJSON(raw);
@@ -79,19 +87,24 @@ export async function openProject(id) {
       if (l.src) {
         try {
           const img = await loadImage(l.src);
+          if (seq !== openSeq) return;
           layer.ctx.drawImage(img, 0, 0, doc.w, doc.h);
         } catch { /* keep empty */ }
-      }
+      } else if (seq !== openSeq) return;
       doc.layers.push(layer);
     }
+    if (seq !== openSeq) return;
     if (!doc.layers.length) doc.layers.push(newLayer(doc.w, doc.h, 'Lớp 1'));
     openDoc(doc);
   } catch (err) {
+    if (seq !== openSeq) return; /* người dùng đã đổi tài liệu, đừng báo lỗi cũ */
     toast('Không mở được bản vẽ: ' + err.message, 'err');
   }
 }
 
 export async function goStart() {
+  /* Rời studio: mọi lần nạp project đang dở phải bỏ, không được mở lại doc. */
+  openSeq++;
   /* Bỏ ô nhập chữ đang mở (không ghi vào tài liệu), rồi chốt bản xem trước
      chỉnh màu trước khi lưu và rời studio. */
   deps.closeTextEditor();
