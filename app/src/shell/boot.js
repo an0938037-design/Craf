@@ -3,7 +3,7 @@ import { $, $$, dpr, loadImage } from '../platform/index.js';
 import { clamp, esc, fmt, pad, uid, createEmitter } from '../shared/index.js';
 import { maskAll, maskBounds, maskInvert } from '../core/index.js';
 import { maskExtract, maskFromLayerAlpha, maskTranslate, strokePath, fillPath, clearPath, gradientPaint as gradientPaintDoc, paintShape as paintShapeDoc, createLayer as newLayer, copyCanvas, mergeLayerInto, flattenLayers, adjustFilter, applyLevels, filterCanvas, paintClippedOver as paintClipped, pngDataURL } from '../pixel/index.js';
-import { selection, state, activeLayer, pushDoc, pushLayer, canUndo, canRedo, docSnapshot } from '../model/index.js';
+import { selection, state, activeLayer, pushDoc, pushLayer, canUndo, canRedo, docSnapshot, dropTagged } from '../model/index.js';
 import { configure as configureOverlay, clearOverlay, requestAnts, drawAnts, startAnts, selectionPath, drawLayerThumb, configureViewport, renderDoc, applyView, fit, setZoom, startPan, dragPan, endPan, moveRing, hideRing, showRing } from '../render/index.js';
 import { configure as configureTools, beginMarquee, dragMarquee, previewMarquee, commitMarquee, wandSelectAt, beginBrush, dragBrush, endBrush, beginMove as moveBegin, planMove, applyMove, beginShape as shapeBegin, dragShape, beginGradient as gradientBegin, dragGradient, gradientHasLength, writeText, FONTS, pickHex, fillAt, setTool as setToolState, panelsFor, cursorFor, hintFor, toDoc as docPoint, notify } from '../tools/index.js';
 import {
@@ -299,6 +299,7 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
         origSrc: pngDataURL(layer.canvas),
         vals: adjustDefaults(),
         pushed: false,
+        tag: null,
       };
       /* Không syncAdjustUI ở đây: readAdjustUI gọi ensureAdjust TRƯỚC khi đọc
          slider, sync sẽ ghi đè giá trị người dùng vừa kéo ở lần chỉnh đầu tiên.
@@ -317,7 +318,11 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     const layer = state.doc && state.doc.layers.find((l) => l.id === a.id);
     if (!layer) return;
     if (!a.pushed) {
-      pushLayerSnapshot(layer, a.origSrc);
+      /* Tag đánh dấu entry của riêng phiên chỉnh này: entry có thể bị Ctrl+Z
+         đẩy sang redo rồi Ctrl+Y tạo lại thành object mới, nên lúc Huỷ phải
+         nhận theo tag chứ không đoán theo phần tử đầu stack. */
+      a.tag = uid();
+      pushLayerSnapshot(layer, a.origSrc, a.tag);
       a.pushed = true;
     }
     const temp = makeCanvas(state.doc.w, state.doc.h);
@@ -369,8 +374,10 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
       layer.ctx.drawImage(a.original, 0, 0);
       if (a.pushed) {
-        const last = state.undo[state.undo.length - 1];
-        if (last && last.kind === 'layer' && last.id === a.id) state.undo.pop();
+        /* Huỷ chỉnh màu phải bỏ đúng entry của phiên này, ở undo hoặc redo —
+           không pop phần tử đầu stack (có thể là entry hợp lệ khác cùng lớp). */
+        dropTagged(a.id, a.tag);
+        a.pushed = false;
       }
       syncHistoryButtons();
     }
@@ -427,9 +434,12 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     syncHistoryButtons();
   }
 
-  function pushLayerSnapshot(layer, src) {
-    pushLayer({ kind: 'layer', id: layer.id, src });
+  function pushLayerSnapshot(layer, src, tag) {
+    const entry = { kind: 'layer', id: layer.id, src };
+    if (tag) entry.tag = tag;
+    pushLayer(entry);
     syncHistoryButtons();
+    return entry;
   }
 
   function currentLayerSrc(id) {
@@ -485,6 +495,8 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     const inverse = snap.kind === 'layer'
       ? { kind: 'layer', id: snap.id, src: currentLayerSrc(snap.id) }
       : snapshotDoc();
+    /* Giữ tag của phiên adjust khi entry đi vòng undo → redo → undo. */
+    if (snap.tag) inverse.tag = snap.tag;
     state.redo.push(inverse);
     await applySnapshot(snap);
     if (state.doc !== doc) return;
@@ -501,6 +513,8 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     const inverse = snap.kind === 'layer'
       ? { kind: 'layer', id: snap.id, src: currentLayerSrc(snap.id) }
       : snapshotDoc();
+    /* Giữ tag của phiên adjust khi entry đi vòng undo → redo → undo. */
+    if (snap.tag) inverse.tag = snap.tag;
     state.undo.push(inverse);
     await applySnapshot(snap);
     if (state.doc !== doc) return;

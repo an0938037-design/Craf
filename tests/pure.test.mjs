@@ -16,7 +16,7 @@ import {
 import { clamp, pad, esc, fmt, uid } from '../app/src/shared/index.js';
 import { createEmitter } from '../app/src/shared/emitter.js';
 import {
-  state, clearHistory, pushDoc, pushLayer, canUndo, canRedo, HISTORY_LIMITS,
+  state, clearHistory, dropTagged, pushDoc, pushLayer, canUndo, canRedo, HISTORY_LIMITS,
   sheetSize, uniqueProjectName, layerMeta,
 } from '../app/src/model/index.js';
 import { selection } from '../app/src/model/index.js';
@@ -274,6 +274,31 @@ test('history: trần doc và layer, entry mới xoá redo', () => {
   state.redo.push({ kind: 'doc', n: 'redo' });
   pushDoc({ kind: 'doc', n: 1 });
   assert.equal(state.redo.length, 0);
+});
+
+test('history: dropTagged bỏ đúng entry của phiên adjust', () => {
+  clearHistory();
+  pushLayer({ kind: 'layer', id: 'a', src: 'stroke' });
+  pushLayer({ kind: 'layer', id: 'a', src: 'adj-base', tag: 't1' });
+  pushLayer({ kind: 'layer', id: 'b', src: 'other', tag: 't1' });
+  dropTagged('a', 't1');
+  assert.deepEqual(state.undo.map((e) => e.src), ['stroke', 'other']);
+
+  /* Entry đã đi vòng sang redo (Ctrl+Z) vẫn bị bỏ đúng tag + lớp. */
+  clearHistory();
+  state.redo.push({ kind: 'layer', id: 'a', src: 'preview', tag: 't1' });
+  state.undo.push({ kind: 'layer', id: 'a', src: 'keep' });
+  dropTagged('a', 't1');
+  assert.equal(state.redo.length, 0);
+  assert.equal(state.undo.length, 1);
+  assert.equal(state.undo[0].src, 'keep');
+
+  /* Không tag (phiên chưa đẩy entry) → không đụng stack. */
+  clearHistory();
+  pushLayer({ kind: 'layer', id: 'a', src: 'keep2' });
+  dropTagged('a', null);
+  assert.equal(state.undo.length, 1);
+  clearHistory();
 });
 
 /* ------------------------------------------------------------------ model helpers */
