@@ -593,6 +593,9 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     if (!state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
     try {
       const img = await loadImage('/api/nott/file?name=' + encodeURIComponent(name));
+      /* Chốt phiên chỉnh màu trước khi thêm lớp: nếu để preview mở, ảnh chụp
+         lịch sử mang theo preview và Huỷ sau đó vẫn hồi sinh nó qua Ctrl+Z. */
+      finishAdjust();
       pushDocHistory();
       let n = 1;
       while (state.doc.layers.some((l) => l.name === 'Ảnh Nott ' + n)) n++;
