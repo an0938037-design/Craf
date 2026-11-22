@@ -20,6 +20,23 @@ python craf.py --open
 
 Mặc định ở `http://127.0.0.1:7317`.
 
+## Bản demo trên Vercel
+
+Bản tĩnh: <https://craf-tawny.vercel.app>
+
+Mở được ba bản vẽ mẫu, vẽ và xuất ảnh đầy đủ. Vì không có máy chủ Python phía
+sau, **lưu** và **cầu Nott** không chạy; tự lưu sẽ báo "Không lưu được" và Nott
+hiện "chưa thấy". Muốn lưu thật thì chạy `python craf.py` trên máy.
+
+Cấu hình nằm ở `vercel.json` (rewrite `/` → `/app/index.html`,
+`/api/bootstrap` và `/api/nott` → JSON tĩnh trong `deploy/`) và
+`.vercelignore` (chỉ đưa `app/`, `library/` mẫu và `deploy/` lên). Triển khai
+lại bằng:
+
+```
+vercel deploy . --prod --yes --project craf
+```
+
 ## Có gì
 
 - **Vẽ**: cọ tự do có lực nhấn (bút cảm ứng) và độ cứng, tẩy, đường, chữ nhật,
