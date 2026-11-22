@@ -25,8 +25,8 @@ Mặc định ở `http://127.0.0.1:7317`.
 Bản tĩnh: <https://craf-tawny.vercel.app>
 
 Mở được ba bản vẽ mẫu, vẽ và xuất ảnh đầy đủ. Vì không có máy chủ Python phía
-sau, **lưu** và **cầu Nott** không chạy; tự lưu sẽ báo "Không lưu được" và Nott
-hiện "chưa thấy". Muốn lưu thật thì chạy `python craf.py` trên máy.
+sau, **lưu** và **cầu Nott** không chạy; tự lưu báo "Bản demo tĩnh không lưu
+được" và Nott hiện "chưa thấy". Muốn lưu thật thì chạy `python craf.py` trên máy.
 
 Cấu hình nằm ở `vercel.json` (rewrite `/` → `/app/index.html`,
 `/api/bootstrap` và `/api/nott` → JSON tĩnh trong `deploy/`) và

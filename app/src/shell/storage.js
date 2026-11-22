@@ -22,7 +22,11 @@ export async function api(path, body) {
   const text = await res.text();
   let data = null;
   try { data = JSON.parse(text); } catch { /* not json */ }
-  if (!res.ok) throw new Error((data && data.error) || text || res.statusText);
+  if (!res.ok) {
+    const err = new Error((data && data.error) || text || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
   return data || {};
 }
 
@@ -125,9 +129,16 @@ export async function saveNow() {
     renderRecent();
   } catch (err) {
     if (current()) setSaveState('dirty');
-    /* Lỗi của bản cũ vẫn phải báo (mất dữ liệu), nhưng nêu tên bản để không
-       tưởng là bản đang mở lưu hỏng. */
-    toast('Không lưu được' + (current() ? '' : ` "${doc.name}"`) + ': ' + err.message, 'err');
+    /* Bản demo tĩnh trên Vercel không có /api/projects: nói rõ là không lưu
+       được vì đang chạy demo, thay vì nhả nguyên văn lỗi 404 của Vercel. */
+    const staticDemo = err && err.status === 404 && !/^(localhost|127(?:\.\d+){3}|\[::1\]|::1)$/.test(location.hostname);
+    if (staticDemo) {
+      toast('Bản demo tĩnh không lưu được' + (current() ? '' : ` "${doc.name}"`) + '. Hãy xuất ảnh để giữ bản vẽ.', 'err');
+    } else {
+      /* Lỗi của bản cũ vẫn phải báo (mất dữ liệu), nhưng nêu tên bản để không
+         tưởng là bản đang mở lưu hỏng. */
+      toast('Không lưu được' + (current() ? '' : ` "${doc.name}"`) + ': ' + err.message, 'err');
+    }
   } finally {
     state.saving = false;
     if (ok && editRev !== rev) {
