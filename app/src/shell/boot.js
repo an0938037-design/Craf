@@ -587,6 +587,10 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     /* Giữ doc lúc bắt đầu: lưu có thể lâu, người dùng đổi bản vẽ thì không
        được gửi nhầm bản mới dưới tên bản cũ. */
     const doc = state.doc;
+    /* Bấm hai lần liên tiếp không được gửi hai bản: khoá nút tới khi xong. */
+    const sendBtn = $('#btnDrawerSend');
+    if (sendBtn && sendBtn.disabled) return;
+    if (sendBtn) sendBtn.disabled = true;
     try {
       await saveNow();
       if (state.doc !== doc) return;
@@ -599,6 +603,8 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
       await refreshNott();
     } catch (err) {
       toast('Gửi thất bại: ' + err.message, 'err');
+    } finally {
+      if (sendBtn) sendBtn.disabled = !state.doc;
     }
   }
 
