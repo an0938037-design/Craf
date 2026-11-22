@@ -125,7 +125,7 @@ def nott_thumb(name: str) -> Path | None:
         return None
     # `hash()` của Python đổi theo tiến trình, nên mỗi lần khởi động lại sinh
     # thêm một bản sao thumbnail. Băm ổn định để dùng lại bộ đệm cũ.
-    key = hashlib.sha1(f"{name}:{int(src.stat().st_mtime)}".encode("utf-8")).hexdigest()[:20]
+    key = hashlib.sha1(f"{name}:{src.stat().st_mtime_ns}".encode("utf-8")).hexdigest()[:20]
     out = CACHE / f"nott-{key}.jpg"
     if out.exists():
         return out
@@ -345,14 +345,26 @@ class Handler(BaseHTTPRequestHandler):
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "craf"
         files = NOTT / "notes" / "files"
         files.mkdir(parents=True, exist_ok=True)
-        # hai lần gửi trong cùng một giây không được ghi đè ảnh trước
+        # Hai lần gửi trong cùng một giây không được ghi đè ảnh trước. Mở bằng
+        # "xb" để dành tên nguyên tử: hai request song song không thể cùng thấy
+        # tên trống rồi cùng ghi (kiểm tra exists() + write_bytes vẫn có khe).
+        blob = base64.b64decode(png.split(",", 1)[1])
         base = f"craf-{slug}-{stamp}"
-        fname = f"{base}.png"
-        n = 2
-        while (files / fname).exists():
-            fname = f"{base}-{n}.png"
-            n += 1
-        (files / fname).write_bytes(base64.b64decode(png.split(",", 1)[1]))
+        n = 1
+        while True:
+            fname = f"{base}.png" if n == 1 else f"{base}-{n}.png"
+            try:
+                with open(files / fname, "xb") as fh:
+                    fh.write(blob)
+                break
+            except FileExistsError:
+                n += 1
+            except Exception:
+                try:
+                    (files / fname).unlink()
+                except OSError:
+                    pass
+                raise
 
         note = _safe_name(body.get("note", ""))
         w, h = int(body.get("w", 0)), int(body.get("h", 0))
