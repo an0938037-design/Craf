@@ -1,0 +1,12 @@
+# Chỉ đưa phần chạy được lên Vercel (site tĩnh).
+.git
+.cache
+__pycache__
+docs
+tests
+tools
+craf.py
+Craf.cmd
+boundaries.json
+*.md
+library/craf-mwq9kpzbxmrf.*
