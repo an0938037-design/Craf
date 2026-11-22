@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import mimetypes
 import os
@@ -122,7 +123,9 @@ def nott_thumb(name: str) -> Path | None:
     root = (NOTT / "notes" / "files").resolve()
     if root not in src.parents or not src.is_file():
         return None
-    key = str(abs(hash((name, int(src.stat().st_mtime)))))
+    # `hash()` của Python đổi theo tiến trình, nên mỗi lần khởi động lại sinh
+    # thêm một bản sao thumbnail. Băm ổn định để dùng lại bộ đệm cũ.
+    key = hashlib.sha1(f"{name}:{int(src.stat().st_mtime)}".encode("utf-8")).hexdigest()[:20]
     out = CACHE / f"nott-{key}.jpg"
     if out.exists():
         return out
@@ -338,11 +341,17 @@ class Handler(BaseHTTPRequestHandler):
         png = str(body.get("png", ""))
         if not png.startswith("data:image/png;base64,"):
             return self._err("thiếu ảnh PNG")
-        stamp = time.strftime("%Y%m%d-%H%M")
+        stamp = time.strftime("%Y%m%d-%H%M%S")
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "craf"
-        fname = f"craf-{slug}-{stamp}.png"
         files = NOTT / "notes" / "files"
         files.mkdir(parents=True, exist_ok=True)
+        # hai lần gửi trong cùng một giây không được ghi đè ảnh trước
+        base = f"craf-{slug}-{stamp}"
+        fname = f"{base}.png"
+        n = 2
+        while (files / fname).exists():
+            fname = f"{base}-{n}.png"
+            n += 1
         (files / fname).write_bytes(base64.b64decode(png.split(",", 1)[1]))
 
         note = _safe_name(body.get("note", ""))
