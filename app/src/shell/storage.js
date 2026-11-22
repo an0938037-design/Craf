@@ -121,7 +121,9 @@ export async function saveNow() {
     renderRecent();
   } catch (err) {
     if (current()) setSaveState('dirty');
-    toast('Không lưu được: ' + err.message, 'err');
+    /* Lỗi của bản cũ vẫn phải báo (mất dữ liệu), nhưng nêu tên bản để không
+       tưởng là bản đang mở lưu hỏng. */
+    toast('Không lưu được' + (current() ? '' : ` "${doc.name}"`) + ': ' + err.message, 'err');
   } finally {
     state.saving = false;
     if (ok && editRev !== rev) {
