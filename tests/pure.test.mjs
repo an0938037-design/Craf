@@ -17,7 +17,7 @@ import { clamp, pad, esc, fmt, uid } from '../app/src/shared/index.js';
 import { createEmitter } from '../app/src/shared/emitter.js';
 import {
   state, clearHistory, dropTagged, pushDoc, pushLayer, canUndo, canRedo, HISTORY_LIMITS,
-  sheetSize, uniqueProjectName, layerMeta,
+  sheetSize, uniqueProjectName, layerMeta, activeLayer, newDocData, activate,
 } from '../app/src/model/index.js';
 import { selection } from '../app/src/model/index.js';
 import { get, set, subscribe, emit } from '../app/src/model/index.js';
@@ -328,6 +328,47 @@ test('layerMeta mặc định và id riêng', () => {
   });
   assert.equal(b.name, 'Lớp 2');
   assert.notEqual(a.id, b.id);
+});
+
+test('doc: newDocData mặc định và id riêng', () => {
+  const a = newDocData('A', 640, 480);
+  const b = newDocData('B', 800, 800);
+  assert.equal(a.name, 'A');
+  assert.equal(a.w, 640);
+  assert.equal(a.h, 480);
+  assert.equal(a.bg, '#FDFAF3');
+  assert.equal(a.active, 0);
+  assert.ok(a.createdAt > 0);
+  assert.notEqual(a.id, b.id);
+});
+
+test('doc: activeLayer + activate xoá phiên cũ và kẹp active', () => {
+  const l1 = { id: 'l1' };
+  const l2 = { id: 'l2' };
+  const doc = { w: 10, h: 10, active: 1, layers: [l1, l2] };
+  state.doc = null;
+  assert.equal(activeLayer(), null);
+
+  state.undo.push({ kind: 'layer' });
+  state.adjust = { bright: 10 };
+  state.guidesX = [4];
+  selection.configure({ getDocSize: () => ({ w: 10, h: 10 }) });
+  selection.apply(maskAll(10, 10), 'replace');
+
+  activate(doc);
+  assert.equal(state.doc, doc);
+  assert.equal(state.active, 1);
+  assert.equal(activeLayer(), l2);
+  assert.equal(state.fitMode, true);
+  assert.equal(state.undo.length, 0);
+  assert.equal(state.redo.length, 0);
+  assert.equal(state.adjust, null);
+  assert.deepEqual(state.guidesX, []);
+  assert.equal(selection.isActive(), false);
+
+  activate({ ...doc, active: 99, layers: [l1] });
+  assert.equal(state.active, 0);
+  assert.equal(activeLayer(), l1);
 });
 
 /* ------------------------------------------------------------------ store + selection */
