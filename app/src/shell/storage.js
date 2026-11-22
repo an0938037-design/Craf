@@ -158,9 +158,19 @@ export function updateExportInfo() {
   const lossy = fmt !== 'png';
   $('#exportQualityRow').hidden = !lossy;
   const alpha = $('#exportAlpha');
-  alpha.disabled = fmt === 'jpeg';
-  if (fmt === 'jpeg') alpha.checked = false;
-  else if (!alpha.disabled && !state.dirty && alpha.dataset.touched !== '1') alpha.checked = true;
+  if (fmt === 'jpeg') {
+    /* Nhớ lựa chọn trước khi buộc tắt: đổi JPEG → PNG phải trả lại đúng nền
+       trong suốt người dùng đang có, không phải phụ thuộc bản vẽ đã lưu hay chưa. */
+    if (alpha.dataset.beforeJpeg === undefined) alpha.dataset.beforeJpeg = alpha.checked ? '1' : '0';
+    alpha.disabled = true;
+    alpha.checked = false;
+  } else {
+    alpha.disabled = false;
+    if (alpha.dataset.beforeJpeg !== undefined) {
+      alpha.checked = alpha.dataset.beforeJpeg === '1';
+      delete alpha.dataset.beforeJpeg;
+    } else if (!state.dirty && alpha.dataset.touched !== '1') alpha.checked = true;
+  }
   const size = fmt === 'png' ? 'PNG · nền trong suốt' : (fmt === 'jpeg' ? 'JPEG · nền giấy' : 'WebP');
   $('#exportInfo').textContent = `${w} × ${h} px · ${Math.round(scale * 100)}% · ${size}`;
   $('#exportAlphaRow').style.opacity = fmt === 'jpeg' ? '0.4' : '1';
