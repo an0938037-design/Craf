@@ -1,12 +1,13 @@
-# Chỉ đưa phần chạy được lên Vercel (site tĩnh).
+# Chỉ đưa phần chạy được lên Vercel (site tĩnh). Dấu / đầu dòng để chỉ khớp
+# thư mục gốc, không nuốt app/src/tools hay README của từng section.
 .git
 .cache
 __pycache__
-docs
-tests
-tools
-craf.py
-Craf.cmd
-boundaries.json
-*.md
-library/craf-mwq9kpzbxmrf.*
+/docs
+/tests
+/tools
+/craf.py
+/Craf.cmd
+/boundaries.json
+/*.md
+/library/craf-mwq9kpzbxmrf.*
