@@ -120,7 +120,7 @@ export async function goStart() {
   deps.finishAdjust();
   /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio.
      Lưu thất bại thì ở lại studio — rời đi lúc này là mất thay đổi chưa lên đĩa. */
-  const saved = await flushSave();
+  const saved = await flushSave(doc);
   /* Đã đổi bản vẽ trong lúc chờ lưu: việc rời studio không còn ý nghĩa, và
      lỗi lưu (nếu có) thuộc bản cũ nên không báo lên bản mới. */
   if (state.doc !== doc) return;
@@ -158,12 +158,14 @@ export async function applySizeModal() {
        nếu không thay đổi đang chờ autosave sẽ mất. Lưu hỏng thì không mở bản
        mới để giữ nguyên bản đang vẽ. */
     const doc = state.doc;
-    if (!(await flushSave())) {
+    const saved = await flushSave(doc);
+    /* Trong lúc chờ lưu, người dùng đã mở bản khác thì đừng tạo đè lên; lỗi
+       lưu (nếu có) thuộc bản cũ nên không báo lên bản mới. */
+    if (state.doc !== doc) return;
+    if (!saved) {
       toast('Chưa lưu được bản cũ — chưa mở bản mới', 'err', 3200);
       return;
     }
-    /* Trong lúc chờ lưu, người dùng đã mở bản khác thì đừng tạo đè lên. */
-    if (state.doc !== doc) return;
     createProject(`Bản vẽ ${w}×${h}`, w, h);
   } else if (mode === 'image') {
     resizeImage(w, h);

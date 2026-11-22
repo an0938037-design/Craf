@@ -71,15 +71,19 @@ export async function waitForSave() {
 /**
  * Đợi lưu xong rồi lưu nốt thay đổi còn bẩn. Tối đa 3 vòng để không treo khi
  * server lỗi hoặc người dùng tiếp tục vẽ trong lúc chờ.
+ * @param {object|null} [expectDoc] Bản vẽ mà lần gọi này đang phục vụ. Nếu người
+ *   dùng đổi bản vẽ trong lúc chờ thì dừng, không lưu tiếp bản mới dưới yêu cầu
+ *   của bản cũ.
  * @returns {Promise<boolean>} true nếu đã sạch (không còn thay đổi chưa lưu).
  */
-export async function flushSave() {
+export async function flushSave(expectDoc = null) {
   for (let i = 0; i < 3; i++) {
     await waitForSave();
+    if (expectDoc && state.doc !== expectDoc) return false;
     if (!state.dirty) return true;
     await saveNow();
   }
-  return !state.dirty;
+  return !state.dirty && (!expectDoc || state.doc === expectDoc);
 }
 
 export async function saveNow() {
