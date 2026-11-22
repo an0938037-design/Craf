@@ -584,11 +584,15 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
     if (!state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
     const n = state.nott || {};
     if (!n.ok) { toast('Không thấy thư mục Nott trên máy', 'err'); openDrawer(); return; }
+    /* Giữ doc lúc bắt đầu: lưu có thể lâu, người dùng đổi bản vẽ thì không
+       được gửi nhầm bản mới dưới tên bản cũ. */
+    const doc = state.doc;
     try {
       await saveNow();
-      const png = pngDataURL(compositeCanvas(state.doc.w, state.doc.h));
+      if (state.doc !== doc) return;
+      const png = pngDataURL(compositeCanvas(doc.w, doc.h));
       const res = await api('/api/nott/send', {
-        name: state.doc.name, w: state.doc.w, h: state.doc.h, png,
+        name: doc.name, w: doc.w, h: doc.h, png,
         note: 'Vẽ trên Craf — mở ảnh trong notes/files để xem bản đầy đủ.',
       });
       toast('Đã gửi sang Nott · ' + res.note, 'ok', 4200);
@@ -600,8 +604,10 @@ import { cropToSelection, flipDoc, rotateDoc, applyLayerTransform, configureGeom
 
   async function importNottImage(name) {
     if (!state.doc) { toast('Mở một bản vẽ trước đã', 'warn'); return; }
+    const doc = state.doc;
     try {
       const img = await loadImage('/api/nott/file?name=' + encodeURIComponent(name));
+      if (state.doc !== doc) { if (state.doc) toast('Đã đổi bản vẽ — bỏ ảnh đang nhập', 'warn', 2400); return; }
       /* Chốt phiên chỉnh màu trước khi thêm lớp: nếu để preview mở, ảnh chụp
          lịch sử mang theo preview và Huỷ sau đó vẫn hồi sinh nó qua Ctrl+Z. */
       finishAdjust();

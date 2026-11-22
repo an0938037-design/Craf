@@ -111,6 +111,9 @@ export async function openProject(id) {
 export async function goStart() {
   /* Rời studio: mọi lần nạp project đang dở phải bỏ, không được mở lại doc. */
   openSeq++;
+  /* Giữ doc lúc bắt đầu: trong lúc chờ lưu, người dùng có thể đã mở bản khác;
+     khi đó phải để bản mới yên, không xoá nó rồi về màn hình bắt đầu. */
+  const doc = state.doc;
   /* Bỏ ô nhập chữ đang mở (không ghi vào tài liệu), rồi chốt bản xem trước
      chỉnh màu trước khi lưu và rời studio. */
   deps.closeTextEditor();
@@ -118,6 +121,9 @@ export async function goStart() {
   /* Nếu đang lưu dở, đợi xong rồi lưu nốt thay đổi mới rồi mới rời studio.
      Lưu thất bại thì ở lại studio — rời đi lúc này là mất thay đổi chưa lên đĩa. */
   const saved = await flushSave();
+  /* Đã đổi bản vẽ trong lúc chờ lưu: việc rời studio không còn ý nghĩa, và
+     lỗi lưu (nếu có) thuộc bản cũ nên không báo lên bản mới. */
+  if (state.doc !== doc) return;
   if (!saved) {
     toast('Chưa lưu được bản vẽ — kiểm tra kết nối rồi thử lại', 'err', 3200);
     return;
@@ -151,10 +157,13 @@ export async function applySizeModal() {
     /* Tạo bản mới trong studio: phải lưu xong bản cũ trước khi thay doc,
        nếu không thay đổi đang chờ autosave sẽ mất. Lưu hỏng thì không mở bản
        mới để giữ nguyên bản đang vẽ. */
+    const doc = state.doc;
     if (!(await flushSave())) {
       toast('Chưa lưu được bản cũ — chưa mở bản mới', 'err', 3200);
       return;
     }
+    /* Trong lúc chờ lưu, người dùng đã mở bản khác thì đừng tạo đè lên. */
+    if (state.doc !== doc) return;
     createProject(`Bản vẽ ${w}×${h}`, w, h);
   } else if (mode === 'image') {
     resizeImage(w, h);
